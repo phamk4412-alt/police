@@ -3,53 +3,296 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Khánh - Police</title>
+  <title>Khánh - Đăng ký tài khoản</title>
   <style>
+    :root {
+      --bg: #f3f3f3;
+      --panel: rgba(255, 255, 255, 0.96);
+      --panel-soft: rgba(250, 250, 250, 0.98);
+      --line: rgba(0, 0, 0, 0.08);
+      --accent: #222222;
+      --text: #202020;
+      --muted: #6b6b6b;
+      --danger: #c62828;
+      --success: #2e7d32;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #0f172a, #111827);
-      color: #eef2ff;
+      background:
+        radial-gradient(circle at top right, rgba(0, 0, 0, 0.04), transparent 26%),
+        linear-gradient(135deg, #ffffff, #efefef 62%);
+      color: var(--text);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
-      text-align: center;
     }
-    .card {
-      background: rgba(15, 23, 42, 0.96);
+
+    .shell {
+      width: min(1080px, 100%);
+      display: grid;
+      grid-template-columns: minmax(320px, 430px) minmax(320px, 1fr);
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
       border-radius: 24px;
-      padding: 38px;
-      width: min(640px, 100%);
-      box-shadow: 0 28px 90px rgba(15, 23, 42, 0.38);
-      border: 1px solid rgba(148, 163, 184, 0.12);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+      padding: 28px;
     }
+
+    .hero {
+      background: var(--panel-soft);
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--accent);
+      font-size: 0.9rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-weight: 700;
+    }
+
     h1 {
-      margin-top: 0;
-      font-size: clamp(2.2rem, 4vw, 3rem);
-      color: #f8fafc;
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3rem);
     }
-    p {
-      color: #cbd5e1;
-      line-height: 1.8;
-      margin: 1.2rem 0;
+
+    .desc {
+      color: var(--muted);
+      line-height: 1.7;
+      margin: 14px 0 28px;
     }
-    a {
-      color: #7dd3fc;
-      text-decoration: none;
+
+    form {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-size: 0.95rem;
+      color: var(--muted);
       font-weight: 600;
     }
-    a:hover {
-      text-decoration: underline;
+
+    input,
+    select {
+      width: 100%;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+      border-radius: 14px;
+      background: #ffffff;
+      color: var(--text);
+      padding: 13px 14px;
+      font: inherit;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+
+    button,
+    .link {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+    }
+
+    button {
+      background: #f4f4f4;
+      color: #202020;
+      border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .link {
+      background: #ffffff;
+      color: var(--text);
+      border: 1px solid rgba(0, 0, 0, 0.12);
+    }
+
+    .status {
+      min-height: 24px;
+      margin: 4px 0 0;
+      font-size: 0.95rem;
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .status.success {
+      color: var(--success);
+    }
+
+    .accounts {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .account-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
+
+    .account-item {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .account-item strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #202020;
+    }
+
+    .account-item span {
+      display: block;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Khánh</h1>
-    <p>Đây là trang dành cho thành viên Khánh. Bạn có thể bổ sung nội dung mô tả, kỹ năng, hoặc liên hệ tại đây.</p>
-    <p><a href="../index.html">← Quay lại trang chủ</a></p>
+  <div class="shell">
+    <section class="panel hero">
+      <p class="eyebrow">Trung tâm chỉ huy</p>
+      <h1>Khánh</h1>
+      <p class="desc">Tạo tài khoản truy cập nội bộ cho cán bộ mới, kiểm tra trùng tên đăng nhập và theo dõi các tài khoản vừa đăng ký ngay trong phiên làm việc.</p>
+
+      <form id="registerForm">
+        <label>
+          Họ và tên
+          <input id="fullName" name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn An" />
+        </label>
+
+        <label>
+          Tên đăng nhập
+          <input id="username" name="username" type="text" placeholder="Ví dụ: an.ops" />
+        </label>
+
+        <label>
+          Mật khẩu
+          <input id="password" name="password" type="password" placeholder="Tối thiểu 6 ký tự" />
+        </label>
+
+        <label>
+          Vai trò
+          <select id="role" name="role">
+            <option>Cán bộ hiện trường</option>
+            <option>Điều phối viên</option>
+            <option>Quản trị hệ thống</option>
+          </select>
+        </label>
+
+        <div class="actions">
+          <button type="submit">Đăng ký tài khoản</button>
+          <a class="link" href="../index.html">Quay lại trang chủ</a>
+        </div>
+        <p id="status" class="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <aside class="panel accounts">
+      <p class="eyebrow">Danh sách nội bộ</p>
+      <h2>Tài khoản đã đăng ký</h2>
+      <p class="desc">Dữ liệu dưới đây mô phỏng danh sách tài khoản để kiểm tra luồng đăng ký trong thư mục Khánh.</p>
+      <ul id="accountList" class="account-list"></ul>
+    </aside>
   </div>
+
+  <script>
+    const accountList = document.getElementById("accountList");
+    const statusNode = document.getElementById("status");
+    const form = document.getElementById("registerForm");
+
+    const accounts = [
+      { fullName: "Nguyễn Văn Minh", username: "minh.command", role: "Điều phối viên" },
+      { fullName: "Lê Thu Hà", username: "ha.ops", role: "Cán bộ hiện trường" }
+    ];
+
+    function renderAccounts() {
+      accountList.innerHTML = "";
+      accounts.forEach((account) => {
+        const item = document.createElement("li");
+        item.className = "account-item";
+        item.innerHTML = `
+          <strong>${account.username}</strong>
+          <span>${account.fullName}</span>
+          <span>${account.role}</span>
+        `;
+        accountList.appendChild(item);
+      });
+    }
+
+    function setStatus(message, type) {
+      statusNode.textContent = message;
+      statusNode.className = `status ${type}`;
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const fullName = form.fullName.value.trim();
+      const username = form.username.value.trim();
+      const password = form.password.value;
+      const role = form.role.value;
+
+      if (!fullName || !username || !password) {
+        setStatus("Cần nhập đầy đủ họ tên, tên đăng nhập và mật khẩu.", "error");
+        return;
+      }
+
+      if (password.length < 6) {
+        setStatus("Mật khẩu phải có ít nhất 6 ký tự.", "error");
+        return;
+      }
+
+      const exists = accounts.some(
+        (account) => account.username.toLowerCase() === username.toLowerCase()
+      );
+
+      if (exists) {
+        setStatus("Tên đăng nhập đã tồn tại. Hãy chọn tên khác.", "error");
+        return;
+      }
+
+      accounts.unshift({ fullName, username, role });
+      renderAccounts();
+      form.reset();
+      setStatus(`Đăng ký thành công tài khoản ${username}.`, "success");
+    });
+
+    renderAccounts();
+  </script>
 </body>
 </html>
