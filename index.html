@@ -3,64 +3,96 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Police - WinForms App</title>
+  <title>Police - Trang chủ</title>
   <style>
+    :root {
+      color-scheme: dark;
+      background: #0b1220;
+      color: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #09121f, #16233f);
-      color: #e8eef9;
       min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
+      display: grid;
+      place-items: center;
       padding: 24px;
+      background: radial-gradient(circle at top, rgba(56, 189, 248, 0.18), transparent 32%),
+                  radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.14), transparent 28%),
+                  linear-gradient(180deg, #020617 0%, #0b1122 100%);
     }
-    .card {
-      width: min(720px, 100%);
-      background: rgba(12, 18, 34, 0.96);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 24px;
-      box-shadow: 0 30px 100px rgba(0,0,0,0.35);
+    .page {
+      width: min(980px, 100%);
+      background: rgba(8, 15, 30, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      border-radius: 28px;
+      box-shadow: 0 40px 120px rgba(0, 0, 0, 0.32);
       padding: 40px;
     }
-    h1 {
-      margin-top: 0;
-      color: #f4f9ff;
-      font-size: clamp(2.4rem, 4vw, 3.4rem);
-    }
-    p {
-      color: #c8d4ef;
-      line-height: 1.8;
-      font-size: 1rem;
-      margin: 1rem 0;
-    }
-    a {
-      color: #70c8ff;
+    .header { max-width: 720px; margin: 0 auto 32px; }
+    h1 { margin: 0 0 16px; font-size: clamp(2.6rem, 4vw, 4rem); letter-spacing: -0.04em; }
+    p.description { margin: 0; font-size: 1.05rem; color: #cbd5e1; line-height: 1.8; }
+    .grid { display: grid; gap: 20px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .card {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      border-radius: 22px;
+      padding: 28px;
+      min-height: 220px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
       text-decoration: none;
-      font-weight: 600;
+      color: inherit;
+      transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
     }
-    a:hover {
-      text-decoration: underline;
+    .card:hover {
+      transform: translateY(-6px);
+      border-color: rgba(96, 165, 250, 0.4);
+      background: rgba(30, 41, 59, 0.98);
     }
-    .note {
+    .card-title { margin: 0; font-size: 1.75rem; color: #f8fafc; }
+    .card-subtitle { margin: 12px 0 0; color: #94a3b8; line-height: 1.6; flex: 1; }
+    .card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
       margin-top: 24px;
-      padding: 22px;
-      background: rgba(112, 200, 255, 0.08);
-      border: 1px solid rgba(112, 200, 255, 0.18);
-      border-radius: 16px;
+      color: #7dd3fc;
+      font-weight: 700;
     }
+    .card-link::after { content: '→'; font-size: 1rem; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Police</h1>
-    <p>Đây là repository chứa ứng dụng <strong>Windows Forms</strong> desktop bằng .NET 6.</p>
-    <p>Vercel chỉ có thể triển khai trang web tĩnh, nên nội dung này được dùng làm trang landing để hiển thị thay vì chạy app desktop.</p>
-    <div class="note">
-      <p><strong>Lưu ý:</strong> ứng dụng chính không chạy trực tiếp trên Vercel. Nếu bạn muốn mở app, hãy tải mã nguồn về và chạy trong Visual Studio.</p>
-      <p><a href="https://github.com/phamk4412-alt/police" target="_blank" rel="noopener noreferrer">Xem repo trên GitHub</a></p>
+  <div class="page">
+    <div class="header">
+      <h1>Police</h1>
+      <p class="description">Chọn thành viên để xem trang riêng trong thư mục tương ứng. Mỗi nút dẫn tới một trang tĩnh trong thư mục Nhân, Khánh, Khải.</p>
+    </div>
+    <div class="grid">
+      <a class="card" href="nhân/">
+        <div>
+          <h2 class="card-title">Nhân</h2>
+          <p class="card-subtitle">Xem trang Nhân với thông tin thành viên và liên kết quay về trang chủ.</p>
+        </div>
+        <span class="card-link">Mở trang Nhân</span>
+      </a>
+      <a class="card" href="khánh/">
+        <div>
+          <h2 class="card-title">Khánh</h2>
+          <p class="card-subtitle">Xem trang Khánh với nội dung thành viên riêng và điều hướng về Home.</p>
+        </div>
+        <span class="card-link">Mở trang Khánh</span>
+      </a>
+      <a class="card" href="khải/">
+        <div>
+          <h2 class="card-title">Khải</h2>
+          <p class="card-subtitle">Xem trang Khải dành riêng cho thành viên, có nút quay về trang chủ.</p>
+        </div>
+        <span class="card-link">Mở trang Khải</span>
+      </a>
     </div>
   </div>
 </body>

@@ -9,78 +9,71 @@ namespace WinFormsApp
     {
         public NhanForm()
         {
-            this.Text = "Trang Nhân";
-            this.Size = new Size(700, 500);
-            this.BackColor = Color.FromArgb(20, 10, 25);
-            this.FormBorderStyle = FormBorderStyle.FixedSingle;
-            this.MaximizeBox = false;
+            Text = "Cán bộ Nhân";
+            ClientSize = new Size(720, 500);
+            BackColor = Color.FromArgb(8, 20, 38);
+            FormBorderStyle = FormBorderStyle.FixedSingle;
+            MaximizeBox = false;
 
-            var canvas = new Panel { Dock = DockStyle.Fill, BackColor = Color.Transparent };
+            var canvas = new Panel { Dock = DockStyle.Fill };
             canvas.Paint += (s, e) =>
             {
                 var g = e.Graphics;
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 var rect = canvas.ClientRectangle;
 
-                // Background gradient
-                using (var br = new LinearGradientBrush(rect,
-                    Color.FromArgb(30, 10, 40), Color.FromArgb(10, 5, 20),
-                    LinearGradientMode.ForwardDiagonal))
-                    g.FillRectangle(br, rect);
+                using (var bg = new LinearGradientBrush(rect, Color.FromArgb(11, 28, 54), Color.FromArgb(4, 16, 34), LinearGradientMode.ForwardDiagonal))
+                {
+                    g.FillRectangle(bg, rect);
+                }
 
-                // Accent circle
-                using (var pen = new Pen(Color.FromArgb(60, 255, 100, 130), 2))
-                    g.DrawEllipse(pen, 480, -80, 300, 300);
-                using (var pen2 = new Pen(Color.FromArgb(30, 255, 100, 130), 1))
-                    g.DrawEllipse(pen2, 440, -60, 380, 380);
+                using (var accent = new Pen(Color.FromArgb(120, 33, 150, 243), 3))
+                {
+                    g.DrawEllipse(accent, 470, 40, 180, 180);
+                    g.DrawRectangle(accent, 40, 40, 230, 90);
+                }
 
-                // Emoji
-                using (var ef = new Font("Segoe UI Emoji", 56))
-                    g.DrawString("🎯", ef, Brushes.White, 40, 60);
+                DrawText(g, "HỒ SƠ CÁN BỘ", 42, 55, 11, FontStyle.Bold, Color.FromArgb(125, 182, 255));
+                DrawText(g, "Nhân", 40, 145, 32, FontStyle.Bold, Color.White);
+                DrawText(g, "Đơn vị tuần tra", 42, 198, 13, FontStyle.Regular, Color.FromArgb(175, 198, 226));
 
-                // Name
-                using (var nf = new Font("Segoe UI", 38, FontStyle.Bold))
-                using (var nb = new SolidBrush(Color.FromArgb(255, 100, 130)))
-                    g.DrawString("NHÂN", nf, nb, 145, 75);
-
-                // Divider
-                using (var p = new Pen(Color.FromArgb(255, 100, 130), 3))
-                    g.DrawLine(p, 40, 175, 340, 175);
-
-                // Info lines
-                DrawInfo(g, "📌  Vai trò:", "Thành viên nhóm", 40, 210);
-                DrawInfo(g, "⚡  Sở thích:", "Lập trình, game", 40, 260);
-                DrawInfo(g, "💬  Châm ngôn:", "\"Code it till you make it\"", 40, 310);
-                DrawInfo(g, "🎂  Năm sinh:", "2005", 40, 360);
+                DrawInfo(g, "Mã đơn vị", "PATROL-01", 42, 255);
+                DrawInfo(g, "Trạng thái", "Sẵn sàng nhận nhiệm vụ", 42, 295);
+                DrawInfo(g, "Khu vực", "Phân khu trung tâm", 42, 335);
+                DrawInfo(g, "Liên lạc", "Kênh nội bộ số 3", 42, 375);
             };
 
-            var btnBack = new Button
+            var backButton = new Button
             {
-                Text = "← Quay lại",
+                Text = "Quay lại",
                 Size = new Size(120, 40),
-                Location = new Point(40, 420),
+                Location = new Point(42, 430),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(255, 100, 130),
+                BackColor = Color.FromArgb(33, 150, 243),
                 ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-            btnBack.FlatAppearance.BorderSize = 0;
-            btnBack.Click += (s, e) => this.Close();
+            backButton.FlatAppearance.BorderSize = 0;
+            backButton.Click += (s, e) => Close();
 
-            this.Controls.Add(canvas);
-            canvas.Controls.Add(btnBack);
+            Controls.Add(canvas);
+            canvas.Controls.Add(backButton);
         }
 
         private void DrawInfo(Graphics g, string label, string value, int x, int y)
         {
-            using (var lf = new Font("Segoe UI", 10, FontStyle.Bold))
-            using (var lb = new SolidBrush(Color.FromArgb(180, 200, 230)))
-                g.DrawString(label, lf, lb, x, y);
+            DrawText(g, label, x, y, 10, FontStyle.Bold, Color.FromArgb(125, 182, 255));
+            DrawText(g, value, x + 160, y, 10, FontStyle.Regular, Color.White);
+        }
 
-            using (var vf = new Font("Segoe UI", 10))
-            using (var vb = new SolidBrush(Color.White))
-                g.DrawString(value, vf, vb, x + 155, y);
+        private void DrawText(Graphics g, string text, int x, int y, float fontSize, FontStyle style, Color color)
+        {
+            using (var font = new Font("Segoe UI", fontSize, style))
+            using (var brush = new SolidBrush(color))
+            {
+                g.DrawString(text, font, brush, x, y);
+            }
         }
     }
 }
