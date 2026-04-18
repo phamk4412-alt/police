@@ -21,7 +21,7 @@ namespace WinFormsApp
         {
             Text = "Đăng ký tài khoản - Khánh";
             ClientSize = new Size(920, 560);
-            BackColor = Color.White;
+            BackColor = Color.FromArgb(11, 18, 32);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
 
@@ -29,35 +29,42 @@ namespace WinFormsApp
             canvas.Paint += Canvas_Paint;
             Controls.Add(canvas);
 
-            var headerLabel = CreateLabel("TRUNG TÂM CHỈ HUY", 42, 38, 11, FontStyle.Bold, Color.FromArgb(255, 220, 120));
-            var titleLabel = CreateLabel("Khánh", 40, 72, 28, FontStyle.Bold, Color.FromArgb(34, 34, 34));
-            var subtitleLabel = CreateLabel("Tạo tài khoản truy cập nội bộ cho cán bộ mới.", 42, 118, 12, FontStyle.Regular, Color.FromArgb(110, 110, 110));
+            var headerLabel = CreateLabel("POLICE CONTROL", 42, 38, 11, FontStyle.Bold, Color.FromArgb(125, 211, 252));
+            var titleLabel = CreateLabel("Khánh", 40, 72, 28, FontStyle.Bold, Color.White);
+            var subtitleLabel = CreateLabel("Tạo tài khoản truy cập nội bộ với giao diện quản trị hiện đại và đồng bộ hệ thống.", 42, 118, 12, FontStyle.Regular, Color.FromArgb(203, 213, 225));
 
             var formPanel = new Panel
             {
                 Location = new Point(40, 170),
                 Size = new Size(390, 320),
-                BackColor = Color.FromArgb(248, 248, 248)
+                BackColor = Color.FromArgb(15, 23, 42)
             };
-            formPanel.Paint += (s, e) => DrawPanelBorder(e.Graphics, formPanel.ClientRectangle, Color.FromArgb(220, 220, 220));
+            formPanel.Paint += (s, e) => DrawPanelBorder(e.Graphics, formPanel.ClientRectangle, Color.FromArgb(45, 125, 211, 252));
 
             formPanel.Controls.Add(CreateFieldLabel("Họ và tên", 22, 26));
             txtFullName.Location = new Point(22, 48);
             txtFullName.Size = new Size(340, 29);
+            StyleInput(txtFullName);
 
             formPanel.Controls.Add(CreateFieldLabel("Tên đăng nhập", 22, 92));
             txtUsername.Location = new Point(22, 114);
             txtUsername.Size = new Size(340, 29);
+            StyleInput(txtUsername);
 
             formPanel.Controls.Add(CreateFieldLabel("Mật khẩu", 22, 158));
             txtPassword.Location = new Point(22, 180);
             txtPassword.Size = new Size(340, 29);
             txtPassword.UseSystemPasswordChar = true;
+            StyleInput(txtPassword);
 
             formPanel.Controls.Add(CreateFieldLabel("Vai trò", 22, 224));
             cboRole.Location = new Point(22, 246);
             cboRole.Size = new Size(340, 29);
             cboRole.DropDownStyle = ComboBoxStyle.DropDownList;
+            cboRole.FlatStyle = FlatStyle.Flat;
+            cboRole.BackColor = Color.FromArgb(8, 15, 30);
+            cboRole.ForeColor = Color.FromArgb(226, 232, 240);
+            cboRole.Font = new Font("Segoe UI", 10, FontStyle.Regular);
             cboRole.Items.AddRange(new object[]
             {
                 "Cán bộ hiện trường",
@@ -72,13 +79,12 @@ namespace WinFormsApp
                 Size = new Size(170, 40),
                 Location = new Point(40, 505),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.FromArgb(245, 245, 245),
-                ForeColor = Color.FromArgb(34, 34, 34),
+                BackColor = Color.FromArgb(59, 130, 246),
+                ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-            registerButton.FlatAppearance.BorderSize = 1;
-            registerButton.FlatAppearance.BorderColor = Color.FromArgb(210, 210, 210);
+            registerButton.FlatAppearance.BorderSize = 0;
             registerButton.Click += RegisterButton_Click;
 
             var backButton = new Button
@@ -87,13 +93,12 @@ namespace WinFormsApp
                 Size = new Size(120, 40),
                 Location = new Point(370, 505),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(70, 70, 70),
+                BackColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(226, 232, 240),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-            backButton.FlatAppearance.BorderSize = 1;
-            backButton.FlatAppearance.BorderColor = Color.FromArgb(210, 210, 210);
+            backButton.FlatAppearance.BorderSize = 0;
             backButton.Click += (s, e) => Close();
 
             var whitePageButton = new Button
@@ -102,13 +107,12 @@ namespace WinFormsApp
                 Size = new Size(140, 40),
                 Location = new Point(220, 505),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(34, 34, 34),
+                BackColor = Color.FromArgb(14, 165, 233),
+                ForeColor = Color.White,
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-            whitePageButton.FlatAppearance.BorderSize = 1;
-            whitePageButton.FlatAppearance.BorderColor = Color.FromArgb(210, 210, 210);
+            whitePageButton.FlatAppearance.BorderSize = 0;
             whitePageButton.Click += (s, e) =>
             {
                 var blankPage = new KhanhBlankForm
@@ -122,25 +126,25 @@ namespace WinFormsApp
             lblStatus.AutoSize = false;
             lblStatus.Location = new Point(40, 495);
             lblStatus.Size = new Size(390, 0);
-            lblStatus.ForeColor = Color.FromArgb(90, 90, 90);
+            lblStatus.ForeColor = Color.FromArgb(148, 163, 184);
             lblStatus.Font = new Font("Segoe UI", 9, FontStyle.Regular);
 
             var listPanel = new Panel
             {
                 Location = new Point(470, 60),
                 Size = new Size(390, 430),
-                BackColor = Color.FromArgb(250, 250, 250)
+                BackColor = Color.FromArgb(15, 23, 42)
             };
-            listPanel.Paint += (s, e) => DrawPanelBorder(e.Graphics, listPanel.ClientRectangle, Color.FromArgb(220, 220, 220));
+            listPanel.Paint += (s, e) => DrawPanelBorder(e.Graphics, listPanel.ClientRectangle, Color.FromArgb(35, 148, 163, 184));
 
-            var listTitle = CreateLabel("Tài khoản đã đăng ký", 18, 18, 14, FontStyle.Bold, Color.FromArgb(34, 34, 34));
-            var listHint = CreateLabel("Danh sách này được lưu trong phiên làm việc hiện tại.", 18, 48, 10, FontStyle.Regular, Color.FromArgb(120, 120, 120));
+            var listTitle = CreateLabel("Tài khoản đã đăng ký", 18, 18, 14, FontStyle.Bold, Color.White);
+            var listHint = CreateLabel("Danh sách này được lưu trong phiên làm việc hiện tại.", 18, 48, 10, FontStyle.Regular, Color.FromArgb(148, 163, 184));
 
             accountList.Location = new Point(18, 82);
             accountList.Size = new Size(354, 320);
             accountList.BorderStyle = BorderStyle.None;
-            accountList.BackColor = Color.White;
-            accountList.ForeColor = Color.FromArgb(45, 45, 45);
+            accountList.BackColor = Color.FromArgb(8, 15, 30);
+            accountList.ForeColor = Color.FromArgb(226, 232, 240);
             accountList.Font = new Font("Segoe UI", 10, FontStyle.Regular);
 
             listPanel.Controls.Add(listTitle);
@@ -171,12 +175,18 @@ namespace WinFormsApp
             g.SmoothingMode = SmoothingMode.AntiAlias;
             var rect = ClientRectangle;
 
-            using (var bg = new LinearGradientBrush(rect, Color.FromArgb(255, 255, 255), Color.FromArgb(242, 242, 242), LinearGradientMode.Vertical))
+            using (var bg = new LinearGradientBrush(rect, Color.FromArgb(2, 6, 23), Color.FromArgb(11, 17, 34), LinearGradientMode.Vertical))
             {
                 g.FillRectangle(bg, rect);
             }
 
-            using (var accent = new Pen(Color.FromArgb(225, 225, 225), 2))
+            using (var glow = new SolidBrush(Color.FromArgb(25, 56, 189, 248)))
+            {
+                g.FillEllipse(glow, 650, -30, 220, 220);
+                g.FillEllipse(glow, -80, 390, 260, 260);
+            }
+
+            using (var accent = new Pen(Color.FromArgb(32, 148, 163, 184), 2))
             {
                 g.DrawRectangle(accent, 455, 38, 405, 470);
                 g.DrawRectangle(accent, 35, 165, 400, 330);
@@ -236,8 +246,8 @@ namespace WinFormsApp
             lblStatus.Text = message;
             lblStatus.Size = new Size(390, 24);
             lblStatus.ForeColor = success
-                ? Color.FromArgb(46, 125, 50)
-                : Color.FromArgb(198, 40, 40);
+                ? Color.FromArgb(74, 222, 128)
+                : Color.FromArgb(248, 113, 113);
         }
 
         private static string FormatAccount(AccountRecord account)
@@ -245,7 +255,7 @@ namespace WinFormsApp
             return $"{account.Username} | {account.FullName} | {account.Role}";
         }
 
-        private static void DrawPanelBorder(Graphics graphics, Rectangle rect, Color color)
+        internal static void DrawPanelBorder(Graphics graphics, Rectangle rect, Color color)
         {
             rect.Width -= 1;
             rect.Height -= 1;
@@ -270,9 +280,17 @@ namespace WinFormsApp
             };
         }
 
+        private static void StyleInput(TextBox textBox)
+        {
+            textBox.BorderStyle = BorderStyle.FixedSingle;
+            textBox.BackColor = Color.FromArgb(8, 15, 30);
+            textBox.ForeColor = Color.FromArgb(226, 232, 240);
+            textBox.Font = new Font("Segoe UI", 10, FontStyle.Regular);
+        }
+
         private static Label CreateFieldLabel(string text, int x, int y)
         {
-            return CreateLabel(text, x, y, 10, FontStyle.Bold, Color.FromArgb(90, 90, 90));
+            return CreateLabel(text, x, y, 10, FontStyle.Bold, Color.FromArgb(125, 211, 252));
         }
 
         private sealed class AccountRecord
@@ -298,7 +316,7 @@ namespace WinFormsApp
         {
             Text = "Trang trắng mới";
             ClientSize = new Size(720, 500);
-            BackColor = Color.White;
+            BackColor = Color.FromArgb(11, 18, 32);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             MaximizeBox = false;
 
@@ -307,7 +325,7 @@ namespace WinFormsApp
                 Text = "Trang trắng mới",
                 AutoSize = true,
                 Font = new Font("Segoe UI", 24, FontStyle.Bold),
-                ForeColor = Color.FromArgb(40, 40, 40),
+                ForeColor = Color.White,
                 Location = new Point(36, 34)
             };
 
@@ -316,9 +334,17 @@ namespace WinFormsApp
                 Text = "Trang này đang để trống để bạn bổ sung nội dung tiếp theo.",
                 AutoSize = true,
                 Font = new Font("Segoe UI", 11, FontStyle.Regular),
-                ForeColor = Color.FromArgb(120, 120, 120),
+                ForeColor = Color.FromArgb(148, 163, 184),
                 Location = new Point(38, 84)
             };
+
+            var surface = new Panel
+            {
+                Location = new Point(28, 24),
+                Size = new Size(664, 400),
+                BackColor = Color.FromArgb(15, 23, 42)
+            };
+            surface.Paint += (s, e) => KhanhForm.DrawPanelBorder(e.Graphics, surface.ClientRectangle, Color.FromArgb(45, 125, 211, 252));
 
             var backButton = new Button
             {
@@ -326,17 +352,17 @@ namespace WinFormsApp
                 Size = new Size(120, 40),
                 Location = new Point(38, 430),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = Color.White,
-                ForeColor = Color.FromArgb(60, 60, 60),
+                BackColor = Color.FromArgb(30, 41, 59),
+                ForeColor = Color.FromArgb(226, 232, 240),
                 Font = new Font("Segoe UI", 10, FontStyle.Bold),
                 Cursor = Cursors.Hand
             };
-            backButton.FlatAppearance.BorderSize = 1;
-            backButton.FlatAppearance.BorderColor = Color.FromArgb(210, 210, 210);
+            backButton.FlatAppearance.BorderSize = 0;
             backButton.Click += (s, e) => Close();
 
-            Controls.Add(title);
-            Controls.Add(subtitle);
+            surface.Controls.Add(title);
+            surface.Controls.Add(subtitle);
+            Controls.Add(surface);
             Controls.Add(backButton);
         }
     }

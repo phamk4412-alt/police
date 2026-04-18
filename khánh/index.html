@@ -3,18 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Khánh - Đăng ký tài khoản</title>
+  <title>Khánh - Police Control</title>
   <style>
     :root {
-      --bg: #f3f3f3;
-      --panel: rgba(255, 255, 255, 0.96);
-      --panel-soft: rgba(250, 250, 250, 0.98);
-      --line: rgba(0, 0, 0, 0.08);
-      --accent: #222222;
-      --text: #202020;
-      --muted: #6b6b6b;
-      --danger: #c62828;
-      --success: #2e7d32;
+      color-scheme: dark;
+      --bg-top: #020617;
+      --bg-bottom: #0b1122;
+      --panel: rgba(8, 15, 30, 0.94);
+      --panel-soft: rgba(15, 23, 42, 0.95);
+      --line: rgba(148, 163, 184, 0.14);
+      --line-strong: rgba(96, 165, 250, 0.34);
+      --text: #e2e8f0;
+      --heading: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #7dd3fc;
+      --accent-strong: #3b82f6;
+      --success: #4ade80;
+      --danger: #f87171;
     }
 
     * {
@@ -24,54 +29,108 @@
     body {
       margin: 0;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background:
-        radial-gradient(circle at top right, rgba(0, 0, 0, 0.04), transparent 26%),
-        linear-gradient(135deg, #ffffff, #efefef 62%);
-      color: var(--text);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 24px;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top, rgba(56, 189, 248, 0.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(96, 165, 250, 0.12), transparent 30%),
+        linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
     }
 
     .shell {
-      width: min(1080px, 100%);
+      width: min(1180px, 100%);
       display: grid;
-      grid-template-columns: minmax(320px, 430px) minmax(320px, 1fr);
+      grid-template-columns: minmax(360px, 460px) minmax(420px, 1fr);
       gap: 24px;
     }
 
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 24px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
-      padding: 28px;
+      border-radius: 28px;
+      box-shadow: 0 30px 100px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(10px);
     }
 
     .hero {
-      background: var(--panel-soft);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
     }
 
     .eyebrow {
-      margin: 0 0 10px;
-      color: var(--accent);
-      font-size: 0.9rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      margin: 0;
+      font-size: 0.85rem;
       font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    h1,
+    h2 {
+      margin: 0;
+      color: var(--heading);
+      letter-spacing: -0.03em;
     }
 
     h1 {
-      margin: 0;
-      font-size: clamp(2rem, 4vw, 3rem);
+      font-size: clamp(2.4rem, 4vw, 3.6rem);
     }
 
-    .desc {
+    h2 {
+      font-size: 1.45rem;
+    }
+
+    .description,
+    .section-copy,
+    .meta,
+    .account-item span {
       color: var(--muted);
-      line-height: 1.7;
-      margin: 14px 0 28px;
+      line-height: 1.75;
+    }
+
+    .hero-top {
+      display: grid;
+      gap: 12px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .stat {
+      padding: 18px;
+      border-radius: 20px;
+      background: var(--panel-soft);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+    }
+
+    .stat strong {
+      display: block;
+      color: var(--heading);
+      font-size: 1.25rem;
+      margin-bottom: 6px;
+    }
+
+    .form-card,
+    .list-card {
+      padding: 28px;
+      border-radius: 24px;
+      background: var(--panel-soft);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+    }
+
+    .form-card {
+      display: grid;
+      gap: 18px;
     }
 
     form {
@@ -82,56 +141,76 @@
     label {
       display: grid;
       gap: 8px;
+      color: var(--text);
       font-size: 0.95rem;
-      color: var(--muted);
       font-weight: 600;
     }
 
     input,
     select {
       width: 100%;
-      border: 1px solid rgba(0, 0, 0, 0.1);
-      border-radius: 14px;
-      background: #ffffff;
-      color: var(--text);
-      padding: 13px 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.14);
+      background: rgba(2, 6, 23, 0.82);
+      color: var(--heading);
       font: inherit;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: var(--line-strong);
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.16);
+      transform: translateY(-1px);
     }
 
     .actions {
       display: flex;
-      gap: 12px;
       flex-wrap: wrap;
-      margin-top: 8px;
+      gap: 12px;
+      padding-top: 4px;
     }
 
-    button,
+    .button,
     .link {
-      border: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 18px;
       border-radius: 999px;
-      padding: 12px 18px;
-      font: inherit;
       font-weight: 700;
-      cursor: pointer;
+      font-size: 0.95rem;
       text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
     }
 
-    button {
-      background: #f4f4f4;
-      color: #202020;
-      border: 1px solid rgba(0, 0, 0, 0.12);
+    .button:hover,
+    .link:hover {
+      transform: translateY(-2px);
+    }
+
+    .button {
+      border: 0;
+      color: white;
+      background: linear-gradient(135deg, #2563eb, #0ea5e9);
+      box-shadow: 0 16px 32px rgba(37, 99, 235, 0.28);
     }
 
     .link {
-      background: #ffffff;
       color: var(--text);
-      border: 1px solid rgba(0, 0, 0, 0.12);
+      background: rgba(15, 23, 42, 0.96);
+      border: 1px solid rgba(148, 163, 184, 0.14);
     }
 
     .status {
       min-height: 24px;
-      margin: 4px 0 0;
+      margin: 0;
       font-size: 0.95rem;
+      font-weight: 600;
     }
 
     .status.error {
@@ -142,10 +221,21 @@
       color: var(--success);
     }
 
-    .accounts {
+    .side {
       display: grid;
-      gap: 14px;
-      align-content: start;
+      gap: 24px;
+    }
+
+    .list-card {
+      display: grid;
+      gap: 18px;
+    }
+
+    .list-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
     }
 
     .account-list {
@@ -153,31 +243,41 @@
       margin: 0;
       padding: 0;
       display: grid;
-      gap: 12px;
+      gap: 14px;
     }
 
     .account-item {
-      padding: 16px 18px;
-      border-radius: 18px;
-      background: #ffffff;
-      border: 1px solid rgba(0, 0, 0, 0.08);
+      padding: 20px;
+      border-radius: 20px;
+      background: rgba(2, 6, 23, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.12);
+      display: grid;
+      gap: 6px;
     }
 
     .account-item strong {
-      display: block;
-      margin-bottom: 6px;
-      color: #202020;
+      color: var(--heading);
+      font-size: 1rem;
     }
 
-    .account-item span {
-      display: block;
-      color: var(--muted);
-      line-height: 1.5;
+    .blank-card {
+      padding: 28px;
+      display: grid;
+      gap: 12px;
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 980px) {
       .shell {
         grid-template-columns: 1fr;
+      }
+
+      .hero-stats {
+        grid-template-columns: 1fr;
+      }
+
+      .list-head {
+        flex-direction: column;
+        align-items: start;
       }
     }
   </style>
@@ -185,49 +285,86 @@
 <body>
   <div class="shell">
     <section class="panel hero">
-      <p class="eyebrow">Trung tâm chỉ huy</p>
-      <h1>Khánh</h1>
-      <p class="desc">Tạo tài khoản truy cập nội bộ cho cán bộ mới, kiểm tra trùng tên đăng nhập và theo dõi các tài khoản vừa đăng ký ngay trong phiên làm việc.</p>
+      <div class="hero-top">
+        <p class="eyebrow">Police Control</p>
+        <h1>Khánh</h1>
+        <p class="description">Không gian quản trị tài khoản nội bộ dành cho đơn vị chỉ huy, được thiết kế đồng bộ với giao diện hệ thống và tối ưu cho thao tác nhanh, rõ ràng, chuyên nghiệp.</p>
+      </div>
 
-      <form id="registerForm">
-        <label>
-          Họ và tên
-          <input id="fullName" name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn An" />
-        </label>
-
-        <label>
-          Tên đăng nhập
-          <input id="username" name="username" type="text" placeholder="Ví dụ: an.ops" />
-        </label>
-
-        <label>
-          Mật khẩu
-          <input id="password" name="password" type="password" placeholder="Tối thiểu 6 ký tự" />
-        </label>
-
-        <label>
-          Vai trò
-          <select id="role" name="role">
-            <option>Cán bộ hiện trường</option>
-            <option>Điều phối viên</option>
-            <option>Quản trị hệ thống</option>
-          </select>
-        </label>
-
-        <div class="actions">
-          <button type="submit">Đăng ký tài khoản</button>
-          <a class="link" href="./trang-trang.html">Trang trắng mới</a>
-          <a class="link" href="../index.html">Quay lại trang chủ</a>
+      <div class="hero-stats">
+        <div class="stat">
+          <strong>02</strong>
+          <span class="meta">Tài khoản mẫu đang hiển thị</span>
         </div>
-        <p id="status" class="status" aria-live="polite"></p>
-      </form>
+        <div class="stat">
+          <strong>24/7</strong>
+          <span class="meta">Theo dõi truy cập nội bộ</span>
+        </div>
+        <div class="stat">
+          <strong>Bảo mật</strong>
+          <span class="meta">Kiểm tra trùng tên đăng nhập</span>
+        </div>
+      </div>
+
+      <div class="form-card">
+        <div>
+          <h2>Đăng ký tài khoản</h2>
+          <p class="section-copy">Tạo tài khoản mới cho cán bộ, điều phối viên hoặc quản trị hệ thống ngay từ giao diện Khánh.</p>
+        </div>
+
+        <form id="registerForm">
+          <label>
+            Họ và tên
+            <input id="fullName" name="fullName" type="text" placeholder="Ví dụ: Nguyễn Văn An" />
+          </label>
+
+          <label>
+            Tên đăng nhập
+            <input id="username" name="username" type="text" placeholder="Ví dụ: an.ops" />
+          </label>
+
+          <label>
+            Mật khẩu
+            <input id="password" name="password" type="password" placeholder="Tối thiểu 6 ký tự" />
+          </label>
+
+          <label>
+            Vai trò
+            <select id="role" name="role">
+              <option>Cán bộ hiện trường</option>
+              <option>Điều phối viên</option>
+              <option>Quản trị hệ thống</option>
+            </select>
+          </label>
+
+          <div class="actions">
+            <button class="button" type="submit">Đăng ký tài khoản</button>
+            <a class="link" href="./trang-trang.html">Mở trang phụ</a>
+            <a class="link" href="../index.html">Quay lại trang chủ</a>
+          </div>
+          <p id="status" class="status" aria-live="polite"></p>
+        </form>
+      </div>
     </section>
 
-    <aside class="panel accounts">
-      <p class="eyebrow">Danh sách nội bộ</p>
-      <h2>Tài khoản đã đăng ký</h2>
-      <p class="desc">Dữ liệu dưới đây mô phỏng danh sách tài khoản để kiểm tra luồng đăng ký trong thư mục Khánh.</p>
-      <ul id="accountList" class="account-list"></ul>
+    <aside class="side">
+      <section class="panel list-card">
+        <div class="list-head">
+          <div>
+            <p class="eyebrow">Tài khoản nội bộ</p>
+            <h2>Danh sách đã đăng ký</h2>
+          </div>
+          <span class="meta">Lưu trong phiên làm việc hiện tại</span>
+        </div>
+        <ul id="accountList" class="account-list"></ul>
+      </section>
+
+      <section class="panel blank-card">
+        <p class="eyebrow">Trang phụ</p>
+        <h2>Khu vực mở rộng</h2>
+        <p class="section-copy">Trang trắng mới có thể dùng cho báo cáo, biểu mẫu nội bộ hoặc nội dung mở rộng sau này.</p>
+        <a class="link" href="./trang-trang.html">Đi tới trang trắng mới</a>
+      </section>
     </aside>
   </div>
 
