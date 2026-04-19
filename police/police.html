@@ -683,7 +683,7 @@
 
           <div class="map-actions">
             <a class="map-link" href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer">Mở Mapbox</a>
-            <a class="map-link secondary" href="index.html">Về đăng nhập</a>
+            <a class="map-link secondary" href="../index.html">Về đăng nhập</a>
           </div>
         </div>
 
@@ -746,7 +746,7 @@
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
   <script>
     if (sessionStorage.getItem("policeRole") !== "police") {
-      window.location.href = "index.html";
+      window.location.href = "../index.html";
     }
 
     const clockNode = document.getElementById("clock");
@@ -782,22 +782,22 @@
         },
         {
           level: "medium",
-          coords: [108.2062, 16.0471],
+          coords: [106.6602, 10.7626],
           title: "Va chạm giao thông",
-          detail: "Đà Nẵng. Đang điều phối luồng giao thông."
+          detail: "Quận 3, TP.HCM. Đang điều phối luồng giao thông."
         },
         {
           level: "low",
-          coords: [105.8342, 21.0278],
+          coords: [106.7298, 10.8039],
           title: "Hỗ trợ dân sự",
-          detail: "Hà Nội. Yêu cầu xác minh và hướng dẫn người dân."
+          detail: "TP Thủ Đức, TP.HCM. Yêu cầu xác minh và hướng dẫn người dân."
         }
       ];
 
       map.on("load", () => {
         map.addSource("hcm", {
           type: "geojson",
-          data: "./hcm-boundary.geojson"
+          data: "../hcm-boundary.geojson"
         });
 
         map.addLayer({
@@ -871,7 +871,7 @@
 
     logoutButton.addEventListener("click", () => {
       sessionStorage.removeItem("policeRole");
-      window.location.href = "index.html";
+      window.location.href = "../index.html";
     });
 
     updateClock();

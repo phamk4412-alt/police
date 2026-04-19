@@ -97,7 +97,7 @@
 
   <script>
     if (sessionStorage.getItem("policeRole") !== "user") {
-      window.location.href = "index.html";
+      window.location.href = "../index.html";
     }
 
     mapboxgl.accessToken = 'pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q';
@@ -113,7 +113,7 @@
       // load geojson
       map.addSource('hcm', {
         type: 'geojson',
-        data: './hcm-boundary.geojson'
+        data: '../hcm-boundary.geojson'
       });
 
       // fill vùng
@@ -151,7 +151,7 @@
 
     document.getElementById("logoutButton").addEventListener("click", () => {
       sessionStorage.removeItem("policeRole");
-      window.location.href = "index.html";
+      window.location.href = "../index.html";
     });
   </script>
 </body>
