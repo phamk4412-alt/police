@@ -1,55 +1,62 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nhân - Police</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản đồ TP. Hồ Chí Minh</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    body {
-      margin: 0;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #111827, #1f2937);
-      color: #eef2ff;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      text-align: center;
-    }
-    .card {
-      background: rgba(15, 23, 42, 0.96);
-      border-radius: 24px;
-      padding: 38px;
-      width: min(640px, 100%);
-      box-shadow: 0 28px 90px rgba(15, 23, 42, 0.38);
-      border: 1px solid rgba(148, 163, 184, 0.12);
-    }
-    h1 {
-      margin-top: 0;
-      font-size: clamp(2.2rem, 4vw, 3rem);
-      color: #f8fafc;
-    }
-    p {
-      color: #cbd5e1;
-      line-height: 1.8;
-      margin: 1.2rem 0;
-    }
-    a {
-      color: #7dd3fc;
-      text-decoration: none;
-      font-weight: 600;
-    }
-    a:hover {
-      text-decoration: underline;
-    }
+    body { margin: 0; padding: 0; }
+    #map { height: 100vh; width: 100%; }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Nhân</h1>
-    <p>Đây là trang dành cho thành viên Nhân. Bạn có thể thêm nội dung giới thiệu, ảnh hoặc liên kết tùy ý vào trang này.</p>
-    <p><a href="../index.html">← Quay lại trang chủ</a></p>
-  </div>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([10.78, 106.70], 11);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap'
+    }).addTo(map);
+
+    // Load file GeoJSON bạn vừa xuất từ geojson.io
+    fetch('data/hcm-boundary.geojson')   // ← thay đường dẫn nếu khác
+      .then(res => res.json())
+      .then(geojson => {
+
+        // Vẽ ranh giới TP.HCM
+        L.geoJSON(geojson, {
+          style: {
+            color: "#1e40af",
+            weight: 5,
+            fillColor: "#bfdbfe",
+            fillOpacity: 0.12
+          }
+        }).addTo(map);
+
+        // Mask phần ngoài (làm tối)
+        const world = [[90, -180], [90, 180], [-90, 180], [-90, -180], [90, -180]];
+
+        L.polygon([world, geojson.features[0].geometry.coordinates[0]], {
+          color: "#000000",
+          fillColor: "#000000",
+          fillOpacity: 0.78,     // chỉnh độ tối ở đây
+          weight: 0,
+          interactive: false
+        }).addTo(map);
+
+        // Zoom vừa khít ranh giới
+        map.fitBounds(L.geoJSON(geojson).getBounds(), { padding: [40, 40] });
+
+      })
+      .catch(err => {
+        console.error(err);
+        alert("Không load được file GeoJSON!\nKiểm tra đường dẫn và tên file.");
+      });
+  </script>
 </body>
 </html>
