@@ -4,8 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Người dùng - Bản đồ TP.HCM</title>
-  
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
+
   <style>
     :root {
       --bg: #190d18;
@@ -13,21 +15,24 @@
       --accent: #fb7185;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
       font-family: "Segoe UI", Tahoma, sans-serif;
       background: var(--bg);
       color: #fff1f2;
       min-height: 100vh;
     }
+
     .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
     .top {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 24px;
       flex-wrap: wrap;
-      gap: 16px;
     }
+
     h1 { font-size: 2.4rem; }
 
     .content {
@@ -43,33 +48,29 @@
       padding: 24px;
     }
 
-    .map-container {
+    #map {
+      width: 100%;
       height: 620px;
       border-radius: 20px;
-      overflow: hidden;
-      border: 1px solid #563350;
-      position: relative;
     }
-
-    #map { height: 100%; width: 100%; }
 
     .btn {
       padding: 12px 20px;
-      border: none;
       border-radius: 999px;
-      font-weight: 700;
+      border: none;
       cursor: pointer;
-      margin-top: 12px;
+      font-weight: bold;
     }
-    .primary { background: var(--accent); color: white; }
+
     .logout { background: #ef4444; color: white; }
 
     @media (max-width: 900px) {
       .content { grid-template-columns: 1fr; }
-      .map-container { height: 480px; }
+      #map { height: 480px; }
     }
   </style>
 </head>
+
 <body>
   <div class="wrap">
     <div class="top">
@@ -81,83 +82,73 @@
     </div>
 
     <div class="content">
-      <!-- Cột trái: Tin tức & Báo cáo -->
       <div class="panel">
         <h2>Tin tức mới</h2>
-        <p style="margin: 16px 0;">• Cảnh báo trộm cắp khu dân cư Quận 5.</p>
-        <p>• Điều chỉnh phân luồng giờ cao điểm tại Quận 1.</p>
-        <p>• Khuyến nghị an toàn dịp lễ toàn thành phố.</p>
-
-        <h2 style="margin-top: 32px;">Báo cáo vụ án</h2>
-        <input type="text" id="incidentType" value="Mất cắp tài sản" style="width:100%; padding:12px; margin:10px 0; border-radius:12px; border:1px solid #71466d; background:#170d16; color:white;" />
-        
-        <textarea id="description" placeholder="Mô tả ngắn tình huống..." style="width:100%; height:140px; padding:12px; margin:10px 0; border-radius:12px; border:1px solid #71466d; background:#170d16; color:white; resize:vertical;"></textarea>
-
-        <div style="display:flex; gap:12px; flex-wrap:wrap;">
-          <button class="btn primary" id="getLocation">Lấy tọa độ hiện tại</button>
-          <button class="btn" style="background:#dc2626; color:white;">Gọi cảnh sát</button>
-          <button class="btn primary" id="submitReport">Gửi báo cáo</button>
-        </div>
+        <p>• Cảnh báo trộm cắp Quận 5</p>
+        <p>• Điều chỉnh giao thông Quận 1</p>
       </div>
 
-      <!-- Cột phải: Bản đồ -->
       <div class="panel">
-        <h2>Bản đồ Thành phố Hồ Chí Minh</h2>
-        <div class="map-container">
-          <div id="map"></div>
-        </div>
+        <h2>Bản đồ TP.HCM</h2>
+        <div id="map"></div>
       </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // Kiểm tra quyền truy cập
     if (sessionStorage.getItem("policeRole") !== "user") {
       window.location.href = "index.html";
     }
 
-    // Khởi tạo bản đồ
-    const map = L.map('map').setView([10.7769, 106.7009], 11);
+    mapboxgl.accessToken = 'YOUR_MAPBOX_API_TOKEN';
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [106.7009, 10.7769],
+      zoom: 10
+    });
 
-    // Load ranh giới TP.HCM
-    fetch('../data/hcm-boundary.geojson')
-      .then(res => res.json())
-      .then(geojson => {
-        // Vẽ ranh giới
-        L.geoJSON(geojson, {
-          style: {
-            color: "#1e40af",
-            weight: 5,
-            fillColor: "#bfdbfe",
-            fillOpacity: 0.12
-          }
-        }).addTo(map);
-
-        // Mask phần ngoài (làm tối)
-        const world = [[90, -180], [90, 180], [-90, 180], [-90, -180], [90, -180]];
-
-        L.polygon([world, geojson.features[0].geometry.coordinates[0]], {
-          color: "#000000",
-          fillColor: "#000000",
-          fillOpacity: 0.78,
-          weight: 0,
-          interactive: false
-        }).addTo(map);
-
-        map.fitBounds(L.geoJSON(geojson).getBounds(), { padding: [40, 40] });
-      })
-      .catch(err => {
-        console.error("Lỗi load bản đồ:", err);
-        alert("Không tải được file bản đồ. Kiểm tra đường dẫn ../data/HCM.geojson");
+    map.on('load', () => {
+      // load geojson
+      map.addSource('hcm', {
+        type: 'geojson',
+        data: './hcm-boundary.geojson'
       });
 
-    // Nút đăng xuất
+      // fill vùng
+      map.addLayer({
+        id: 'hcm-fill',
+        type: 'fill',
+        source: 'hcm',
+        paint: {
+          'fill-color': '#60a5fa',
+          'fill-opacity': 0.2
+        }
+      });
+
+      // viền
+      map.addLayer({
+        id: 'hcm-line',
+        type: 'line',
+        source: 'hcm',
+        paint: {
+          'line-color': '#1e40af',
+          'line-width': 3
+        }
+      });
+
+      const hcmBounds = [
+        [106.35, 10.35],
+        [107.05, 11.15]
+      ];
+
+      map.fitBounds(hcmBounds, {
+        padding: 30,
+        duration: 0
+      });
+    });
+
     document.getElementById("logoutButton").addEventListener("click", () => {
       sessionStorage.removeItem("policeRole");
       window.location.href = "index.html";
