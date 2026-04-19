@@ -762,15 +762,13 @@
         return;
       }
 
-      mapboxgl.accessToken = "YOUR_MAPBOX_TOKEN";
+      mapboxgl.accessToken = "pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q";
 
       const map = new mapboxgl.Map({
         container: "incidentMap",
         style: "mapbox://styles/mapbox/dark-v11",
-        center: [108.506, 13.664],
-        zoom: 6.13,
-        pitch: 20,
-        bearing: -6
+        center: [106.7009, 10.7769],
+        zoom: 10
       });
 
       map.addControl(new mapboxgl.NavigationControl(), "top-left");
@@ -796,18 +794,55 @@
         }
       ];
 
-      incidents.forEach((incident) => {
-        const markerNode = document.createElement("div");
-        markerNode.className = `incident-marker ${incident.level}`;
+      map.on("load", () => {
+        map.addSource("hcm", {
+          type: "geojson",
+          data: "./hcm-boundary.geojson"
+        });
 
-        new mapboxgl.Marker(markerNode)
-          .setLngLat(incident.coords)
-          .setPopup(
-            new mapboxgl.Popup({ offset: 18 }).setHTML(
-              `<div class="map-popup"><strong>${incident.title}</strong>${incident.detail}</div>`
+        map.addLayer({
+          id: "hcm-fill",
+          type: "fill",
+          source: "hcm",
+          paint: {
+            "fill-color": "#60a5fa",
+            "fill-opacity": 0.2
+          }
+        });
+
+        map.addLayer({
+          id: "hcm-line",
+          type: "line",
+          source: "hcm",
+          paint: {
+            "line-color": "#1e40af",
+            "line-width": 3
+          }
+        });
+
+        const hcmBounds = [
+          [106.35, 10.35],
+          [107.05, 11.15]
+        ];
+
+        map.fitBounds(hcmBounds, {
+          padding: 30,
+          duration: 0
+        });
+
+        incidents.forEach((incident) => {
+          const markerNode = document.createElement("div");
+          markerNode.className = `incident-marker ${incident.level}`;
+
+          new mapboxgl.Marker(markerNode)
+            .setLngLat(incident.coords)
+            .setPopup(
+              new mapboxgl.Popup({ offset: 18 }).setHTML(
+                `<div class="map-popup"><strong>${incident.title}</strong>${incident.detail}</div>`
+              )
             )
-          )
-          .addTo(map);
+            .addTo(map);
+        });
       });
     }
 
