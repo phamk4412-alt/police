@@ -57,6 +57,8 @@ namespace WinFormsApp
 
             var backButton = UiFactory.CreateButton(canvas, "Quay lại", new Rectangle(38, 708, 120, 36), Color.FromArgb(34, 51, 84), Color.White);
             backButton.Click += (s, e) => Close();
+            var logoutButton = UiFactory.CreateButton(canvas, "Đăng xuất", new Rectangle(174, 708, 120, 36), Color.FromArgb(220, 53, 69), Color.White);
+            logoutButton.Click += (s, e) => SessionNavigator.Logout(this);
         }
     }
 }
