@@ -1,14 +1,10 @@
-using System.Windows.Forms;
-
 namespace WinFormsApp
 {
     internal static class SessionNavigator
     {
-        public static void Logout(Form currentForm)
+        public static void Logout()
         {
-            var loginForm = new LoginForm();
-            loginForm.Show();
-            currentForm.Close();
+            AppSessionContext.Current.ShowLogin();
         }
     }
 }

@@ -44,9 +44,9 @@ namespace WinFormsApp
 
             var loginCard = UiFactory.CreateCard(canvas, new Rectangle(60, 190, 380, 310), Color.FromArgb(8, 22, 42), Color.FromArgb(80, 100, 195, 255));
             UiFactory.CreateLabel(loginCard, "Tên đăng nhập", 28, 30, 10, FontStyle.Bold, Color.FromArgb(200, 216, 232));
-            var usernameBox = UiFactory.CreateTextBox(loginCard, new Rectangle(28, 54, 320, 34), "admin");
+            var usernameBox = UiFactory.CreateTextBox(loginCard, new Rectangle(28, 54, 320, 34));
             UiFactory.CreateLabel(loginCard, "Mật khẩu", 28, 108, 10, FontStyle.Bold, Color.FromArgb(200, 216, 232));
-            var passwordBox = UiFactory.CreateTextBox(loginCard, new Rectangle(28, 132, 320, 34), "admin123");
+            var passwordBox = UiFactory.CreateTextBox(loginCard, new Rectangle(28, 132, 320, 34));
             passwordBox.UseSystemPasswordChar = true;
 
             var messageLabel = UiFactory.CreateLabel(loginCard, "", 28, 178, 9.5f, FontStyle.Regular, Color.FromArgb(255, 189, 189));
@@ -88,24 +88,8 @@ namespace WinFormsApp
                 return;
             }
 
-            var targetForm = CreateRoleForm(account.Role);
-            targetForm.Text = $"{targetForm.Text} - {account.DisplayName}";
-            targetForm.FormClosed += (s, e) => Close();
-
-            Hide();
-            targetForm.Show();
-        }
-
-        private Form CreateRoleForm(RoleType role)
-        {
-            return role switch
-            {
-                RoleType.Admin => new AdminForm(),
-                RoleType.User => new UserForm(),
-                RoleType.Police => new PoliceOfficerForm(),
-                RoleType.Support => new SupportStaffForm(),
-                _ => new MainForm()
-            };
+            messageLabel.Text = string.Empty;
+            AppSessionContext.Current.OpenRoleForm(account.Role, account.DisplayName);
         }
     }
 }
