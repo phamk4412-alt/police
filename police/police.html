@@ -414,6 +414,32 @@
       font-weight: 700;
     }
 
+    .map-popup-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .popup-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+    }
+
+    .popup-btn.receive {
+      background: #2563eb;
+    }
+
+    .popup-btn.resolve {
+      background: #16a34a;
+    }
+
     @keyframes urgentPulse {
       0% {
         transform: scale(0.9);
@@ -574,6 +600,41 @@
     .map-link.secondary {
       background: #24304c;
       color: #d8e4ff;
+    }
+
+    .live-alert {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 30;
+      min-width: 280px;
+      max-width: 360px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 59, 71, 0.96);
+      color: white;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+      opacity: 0;
+      transform: translateY(-12px);
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .live-alert.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .live-alert strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .live-alert span {
+      display: block;
+      font-size: 0.92rem;
+      color: rgba(255, 255, 255, 0.88);
     }
 
     @media (max-width: 1280px) {
@@ -760,6 +821,10 @@
       </section>
     </main>
   </div>
+  <div class="live-alert" id="liveAlert">
+    <strong>Thông báo mới</strong>
+    <span id="liveAlertText">Đang chờ vụ việc mới từ người dùng.</span>
+  </div>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
   <script>
@@ -774,6 +839,114 @@
     const checkoutButton = document.getElementById("checkoutButton");
     const callStationButton = document.getElementById("callStationButton");
     const logoutButton = document.getElementById("logoutButton");
+    const liveAlert = document.getElementById("liveAlert");
+    const liveAlertText = document.getElementById("liveAlertText");
+    let refreshTimer;
+    let liveReportMarkers = [];
+    let seenReportIds = new Set();
+    let latestToastTimer;
+    let audioContext;
+    let hasInitializedReports = false;
+
+    function showLiveAlert(message) {
+      liveAlertText.textContent = message;
+      liveAlert.classList.add("show");
+
+      if (latestToastTimer) {
+        window.clearTimeout(latestToastTimer);
+      }
+
+      latestToastTimer = window.setTimeout(() => {
+        liveAlert.classList.remove("show");
+      }, 4200);
+    }
+
+    function ensureAudioReady() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+    }
+
+    function playAlarmSound() {
+      try {
+        ensureAudioReady();
+
+        const now = audioContext.currentTime;
+        [0, 0.22].forEach((delay) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+
+          oscillator.type = "square";
+          oscillator.frequency.setValueAtTime(880, now + delay);
+
+          gain.gain.setValueAtTime(0.0001, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.16, now + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.16);
+
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(now + delay);
+          oscillator.stop(now + delay + 0.18);
+        });
+      } catch (error) {
+        console.error("Khong phat duoc am thanh thong bao", error);
+      }
+    }
+
+    function addPopupActions(reportId) {
+      const popupBody = document.querySelector(".mapboxgl-popup .map-popup");
+      if (!popupBody || popupBody.querySelector(".map-popup-actions")) {
+        return;
+      }
+
+      const actionRow = document.createElement("div");
+      actionRow.className = "map-popup-actions";
+      actionRow.innerHTML = `
+        <button class="popup-btn receive" type="button" data-status="Da tiep nhan">Đã tiếp nhận</button>
+        <button class="popup-btn resolve" type="button" data-status="Da xu ly">Đã xử lý</button>
+      `;
+
+      actionRow.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          window.updateIncidentStatus(reportId, button.dataset.status);
+        });
+      });
+
+      popupBody.appendChild(actionRow);
+    }
+
+    window.updateIncidentStatus = async (incidentId, status) => {
+      try {
+        const response = await fetch(`/api/incidents/${incidentId}/status`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status })
+        });
+
+        if (!response.ok) {
+          throw new Error("Khong cap nhat duoc trang thai.");
+        }
+
+        showLiveAlert(`Đã cập nhật trạng thái: ${status}`);
+        await new Promise((resolve) => window.setTimeout(resolve, 150));
+        const refreshed = document.querySelector(".mapboxgl-popup-close-button");
+        if (refreshed) {
+          refreshed.click();
+        }
+      } catch (error) {
+        showLiveAlert(error.message || "Cap nhat trang thai that bai.");
+      }
+    };
+
+    document.addEventListener("click", () => {
+      ensureAudioReady();
+    }, { once: true });
 
     function initMap() {
       if (typeof mapboxgl === "undefined") {
@@ -790,6 +963,85 @@
       });
 
       map.addControl(new mapboxgl.NavigationControl(), "top-left");
+
+      function clearLiveReports() {
+        liveReportMarkers.forEach((marker) => marker.remove());
+        liveReportMarkers = [];
+      }
+
+      function renderLiveReports(reports) {
+        clearLiveReports();
+
+        reports.forEach((report) => {
+          const markerNode = document.createElement("div");
+          markerNode.className = `incident-marker ${report.Level}`;
+          markerNode.dataset.reportId = report.Id;
+          markerNode.setAttribute("role", "button");
+          markerNode.setAttribute("tabindex", "0");
+
+          const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
+            `<div class="map-popup">
+              <strong>${report.Title}</strong>
+              <p>${report.Detail}</p>
+              <div class="map-popup-footer">
+                <span class="map-popup-time">Thời gian: ${report.TimeLabel || "--:--"}</span>
+                <span class="map-popup-status">${report.Status || "Mới tiếp nhận"}</span>
+              </div>
+            </div>`
+          );
+
+          const marker = new mapboxgl.Marker(markerNode)
+            .setLngLat([report.Longitude, report.Latitude])
+            .setPopup(popup)
+            .addTo(map);
+
+          popup.on("open", () => {
+            window.setTimeout(() => addPopupActions(report.Id), 0);
+          });
+
+          markerNode.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              popup.addTo(map);
+            }
+          });
+
+          liveReportMarkers.push(marker);
+        });
+      }
+
+      async function refreshLiveReports() {
+        try {
+          const response = await fetch("/api/incidents");
+          if (!response.ok) {
+            return;
+          }
+
+          const reports = await response.json();
+          const newReports = reports.filter((report) => !seenReportIds.has(report.Id));
+
+          reports.forEach((report) => seenReportIds.add(report.Id));
+          renderLiveReports(reports);
+
+          if (!hasInitializedReports) {
+            hasInitializedReports = true;
+            return;
+          }
+
+          if (newReports.length > 0) {
+            const latestReport = newReports[0];
+            showLiveAlert(`Có báo án mới: ${latestReport.Title}`);
+            playAlarmSound();
+            map.flyTo({
+              center: [latestReport.Longitude, latestReport.Latitude],
+              zoom: 13,
+              essential: true
+            });
+          }
+        } catch (error) {
+          console.error("Khong tai duoc vu viec moi", error);
+        }
+      }
 
       const incidents = [
         {
@@ -899,6 +1151,9 @@
             }
           });
         });
+
+        refreshLiveReports();
+        refreshTimer = window.setInterval(refreshLiveReports, 4000);
       });
     }
 
@@ -911,21 +1166,27 @@
     }
 
     checkinButton.addEventListener("click", () => {
+      ensureAudioReady();
       presentCount.textContent = "5";
       workingCount.textContent = "4";
       checkinButton.textContent = "✓ Đã vào ca";
     });
 
     checkoutButton.addEventListener("click", () => {
+      ensureAudioReady();
       workingCount.textContent = "2";
       checkoutButton.textContent = "✓ Đã kết thúc";
     });
 
     callStationButton.addEventListener("click", () => {
+      ensureAudioReady();
       window.alert("Đang kết nối đến trụ sở điều hành.");
     });
 
     logoutButton.addEventListener("click", () => {
+      if (refreshTimer) {
+        window.clearInterval(refreshTimer);
+      }
       sessionStorage.removeItem("policeRole");
       window.location.href = "../index.html";
     });
