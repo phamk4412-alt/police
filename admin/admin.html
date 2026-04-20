@@ -6,61 +6,196 @@
   <title>Admin Dashboard</title>
   <style>
     :root {
-      --bg: #ffffff;
-      --panel: #ffffff;
-      --panel-soft: #f8fafc;
-      --border: #dbe4f0;
-      --text: #0f172a;
-      --muted: #64748b;
-      --cyan: #0891b2;
-      --blue: #2563eb;
-      --red: #ef4444;
-      --green: #16a34a;
-      --shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+      --bg: #f3f7fc;
+      --bg-layer: #e8eff8;
+      --panel: rgba(255, 255, 255, 0.95);
+      --panel-soft: #f7faff;
+      --panel-strong: #edf3fb;
+      --border: #d7e1ee;
+      --border-strong: #bfd0e3;
+      --text: #142033;
+      --muted: #5b6b83;
+      --primary: #184a8c;
+      --primary-strong: #0f3a73;
+      --primary-soft: #e6eef9;
+      --info: #2563eb;
+      --info-soft: #e8f0ff;
+      --accent: #c58b1b;
+      --accent-soft: #fff5db;
+      --danger: #c83b32;
+      --danger-soft: #fde8e6;
+      --success: #1f7a5a;
+      --success-soft: #e4f4ee;
+      --shadow: 0 22px 48px rgba(20, 32, 51, 0.08);
+      --shadow-soft: 0 14px 30px rgba(20, 32, 51, 0.05);
     }
 
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
+      min-height: 100vh;
       font-family: "Segoe UI", Tahoma, sans-serif;
       background:
-        radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 28%),
-        linear-gradient(180deg, #ffffff, #f7fbff);
+        radial-gradient(circle at top left, rgba(24, 74, 140, 0.16), transparent 26%),
+        radial-gradient(circle at right 15%, rgba(197, 139, 27, 0.12), transparent 22%),
+        linear-gradient(180deg, var(--bg), var(--bg-layer));
       color: var(--text);
     }
 
-    .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 48px; }
-    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
-    .eyebrow { margin: 0 0 6px; color: var(--cyan); font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; }
-    h1 { margin: 0; font-size: clamp(2rem, 4vw, 2.6rem); }
-    .sub { margin: 10px 0 0; color: var(--muted); max-width: 720px; }
-    .btn { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; cursor: pointer; }
-    .logout { background: var(--red); color: white; }
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 24px 48px;
+    }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 24px; }
-    .card, .panel {
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      padding: 28px 30px;
+      background: linear-gradient(135deg, rgba(15, 58, 115, 0.96), rgba(24, 74, 140, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 28px;
+      box-shadow: 0 26px 56px rgba(15, 58, 115, 0.22);
+      color: white;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: rgba(255, 255, 255, 0.72);
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 2.6rem);
+      line-height: 1.15;
+    }
+
+    .sub {
+      margin: 12px 0 0;
+      color: rgba(232, 240, 250, 0.84);
+      max-width: 760px;
+      line-height: 1.65;
+    }
+
+    .btn {
+      border: 1px solid transparent;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease, background 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .logout {
+      background: rgba(255, 255, 255, 0.12);
+      color: white;
+      border-color: rgba(255, 255, 255, 0.18);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .card,
+    .panel {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 24px;
       padding: 22px;
       box-shadow: var(--shadow);
+      backdrop-filter: blur(12px);
     }
 
-    .card-title { color: var(--muted); font-size: 0.95rem; font-weight: 600; }
-    .card strong { display: block; font-size: 2rem; margin-top: 10px; }
-    .card p { margin: 10px 0 0; color: var(--muted); }
-    .cyan strong { color: var(--cyan); }
-    .blue strong { color: var(--blue); }
-    .red strong { color: var(--red); }
-    .green strong { color: var(--green); }
+    .card {
+      position: relative;
+      overflow: hidden;
+    }
 
-    .main-grid { display: grid; grid-template-columns: 1.55fr 0.82fr 0.95fr; gap: 18px; align-items: start; }
-    .panel h2 { margin: 0 0 18px; font-size: 1.15rem; }
-    .panel h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--muted); }
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 5px;
+      border-radius: 24px 0 0 24px;
+      background: currentColor;
+      opacity: 0.95;
+    }
 
-    .table-head, .table-row {
+    .card-title {
+      color: var(--muted);
+      font-size: 0.95rem;
+      font-weight: 600;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 2rem;
+      margin-top: 10px;
+    }
+
+    .card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+    }
+
+    .primary-card {
+      color: var(--primary);
+      background: linear-gradient(180deg, #ffffff, #f6faff);
+    }
+
+    .info-card {
+      color: var(--info);
+      background: linear-gradient(180deg, #ffffff, #f5f9ff);
+    }
+
+    .danger-card {
+      color: var(--danger);
+      background: linear-gradient(180deg, #ffffff, #fff7f6);
+    }
+
+    .accent-card {
+      color: var(--accent);
+      background: linear-gradient(180deg, #ffffff, #fffaf0);
+    }
+
+    .primary-card strong { color: var(--primary); }
+    .info-card strong { color: var(--info); }
+    .danger-card strong { color: var(--danger); }
+    .accent-card strong { color: var(--accent); }
+
+    .main-grid {
       display: grid;
-      grid-template-columns: 1.3fr 0.9fr 1fr 0.7fr;
+      grid-template-columns: 1.55fr 0.82fr 0.95fr;
+      gap: 18px;
+      align-items: start;
+    }
+
+    .panel h2 {
+      margin: 0 0 18px;
+      font-size: 1.15rem;
+      color: var(--primary-strong);
+    }
+
+    .table-head,
+    .table-row {
+      display: grid;
+      grid-template-columns: 1.15fr 0.9fr 1.1fr 0.7fr;
       gap: 10px;
       align-items: center;
     }
@@ -70,53 +205,217 @@
       font-size: 0.9rem;
       font-weight: 700;
       margin-bottom: 10px;
+      padding: 0 8px;
     }
 
-    .table-body { display: grid; gap: 10px; }
+    .table-body {
+      display: grid;
+      gap: 10px;
+    }
+
     .table-row {
-      padding: 12px 14px;
+      padding: 14px 16px;
       background: var(--panel-soft);
-      border: 1px solid #e5edf7;
-      border-radius: 16px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
       font-size: 0.95rem;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
     }
 
-    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
-    .ghost { background: #e2e8f0; color: var(--text); }
-    .primary { background: #06b6d4; color: white; }
-    .updated { color: var(--muted); font-size: 0.9rem; }
+    .area-name {
+      font-weight: 700;
+      color: var(--text);
+    }
 
-    .metric-stack { display: grid; gap: 12px; margin-bottom: 14px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 32px;
+      width: fit-content;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 0.83rem;
+      font-weight: 800;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .badge-severity-high {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-color: #f5c5bf;
+    }
+
+    .badge-severity-medium {
+      background: var(--accent-soft);
+      color: #9a6700;
+      border-color: #efd9a4;
+    }
+
+    .badge-severity-low {
+      background: var(--success-soft);
+      color: var(--success);
+      border-color: #bde2d5;
+    }
+
+    .badge-status-handled {
+      background: var(--info-soft);
+      color: var(--primary);
+      border-color: #c9daf8;
+    }
+
+    .badge-status-pending {
+      background: var(--accent-soft);
+      color: #9a6700;
+      border-color: #efd9a4;
+    }
+
+    .badge-status-closed {
+      background: #eef2f7;
+      color: #475569;
+      border-color: #d8e0ea;
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      align-items: center;
+    }
+
+    .ghost {
+      background: var(--panel-strong);
+      color: var(--text);
+      border-color: var(--border);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      color: white;
+    }
+
+    .updated {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .metric-stack {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
     .metric {
-      background: var(--panel-soft);
-      border: 1px solid #e5edf7;
+      background: linear-gradient(180deg, #ffffff, var(--panel-soft));
+      border: 1px solid var(--border);
       border-radius: 18px;
       padding: 14px 16px;
     }
 
-    .metric-title { color: var(--muted); font-size: 0.9rem; font-weight: 700; }
-    .metric-value { margin-top: 6px; font-size: 1.5rem; font-weight: 800; }
-    .metric-note { margin-top: 4px; color: var(--muted); font-size: 0.9rem; }
+    .metric-title {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
 
-    .breakdown { color: #475569; font-size: 0.92rem; line-height: 1.5; }
+    .metric-value {
+      margin-top: 6px;
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
 
-    input, textarea {
+    .metric-note {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .breakdown {
+      color: #475569;
+      font-size: 0.92rem;
+      line-height: 1.5;
+    }
+
+    .breakdown div + div {
+      margin-top: 8px;
+    }
+
+    label {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    input,
+    textarea {
       width: 100%;
       margin-top: 10px;
       padding: 12px 14px;
       border-radius: 14px;
-      border: 1px solid #cbd5e1;
+      border: 1px solid var(--border);
       background: var(--panel-soft);
       color: var(--text);
       font: inherit;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
 
-    textarea { min-height: 150px; resize: vertical; }
-    .publish-status { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
-    .publish-status input { margin-top: 0; }
+    input:focus,
+    textarea:focus {
+      outline: none;
+      border-color: var(--border-strong);
+      box-shadow: 0 0 0 4px rgba(24, 74, 140, 0.12);
+      background: #ffffff;
+    }
+
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+    }
+
+    .publish-status {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 12px;
+    }
+
+    .publish-status input {
+      margin-top: 0;
+    }
 
     @media (max-width: 1024px) {
-      .main-grid { grid-template-columns: 1fr; }
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .wrap {
+        padding: 20px 16px 36px;
+      }
+
+      .top {
+        padding: 24px 20px;
+      }
+
+      .table-head,
+      .table-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .publish-status {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .publish-status .btn,
+      .actions .btn {
+        width: 100%;
+      }
     }
   </style>
 </head>
@@ -155,17 +454,17 @@
         <div class="metric-stack">
           <div class="metric">
             <div class="metric-title">Tỷ lệ xử lý</div>
-            <div class="metric-value" id="handledRate" style="color: var(--green);"></div>
+            <div class="metric-value" id="handledRate" style="color: var(--success);"></div>
             <div class="metric-note" id="handledRateNote"></div>
           </div>
           <div class="metric">
             <div class="metric-title">Mức khẩn</div>
-            <div class="metric-value" id="urgentRate" style="color: var(--red);"></div>
+            <div class="metric-value" id="urgentRate" style="color: var(--danger);"></div>
             <div class="metric-note" id="urgentRateNote"></div>
           </div>
           <div class="metric">
             <div class="metric-title">Khu vực nổi bật</div>
-            <div class="metric-value" id="focusArea" style="color: var(--blue);"></div>
+            <div class="metric-value" id="focusArea" style="color: var(--primary);"></div>
             <div class="metric-note" id="focusAreaNote"></div>
           </div>
         </div>
@@ -231,28 +530,40 @@
       return Object.entries(grouped).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] || ["Chưa có", 0];
     }
 
+    function getSeverityClass(severity) {
+      if (severity === "Khẩn") return "badge-severity-high";
+      if (severity === "Trung bình") return "badge-severity-medium";
+      return "badge-severity-low";
+    }
+
+    function getStatusClass(status) {
+      if (status === "Đã điều phối") return "badge-status-handled";
+      if (status === "Đang xác minh" || status === "Chờ xử lý") return "badge-status-pending";
+      return "badge-status-closed";
+    }
+
     function renderOverview() {
       const processing = reports.filter(report => report.status === "Đang xác minh" || report.status === "Chờ xử lý").length;
       const urgent = countBy("severity", "Khẩn");
       const activeTeams = Math.min(9, Math.max(5, reports.filter(report => report.status === "Đã điều phối" || report.status === "Đã đóng").length + 3));
 
       overviewCards.innerHTML = `
-        <div class="card cyan">
+        <div class="card primary-card">
           <div class="card-title">Báo cáo hôm nay</div>
           <strong>${reports.length}</strong>
           <p>${processing} báo cáo đang cần theo dõi</p>
         </div>
-        <div class="card blue">
+        <div class="card info-card">
           <div class="card-title">Tin tức đã đăng</div>
           <strong>${publishedNewsCount}</strong>
           <p>${Math.max(1, Math.floor(publishedNewsCount / 12))} bản tin nổi bật trong ngày</p>
         </div>
-        <div class="card red">
+        <div class="card danger-card">
           <div class="card-title">Ca khẩn cấp</div>
           <strong>${urgent}</strong>
           <p>${countBy("status", "Đang xác minh")} ca đang xác minh</p>
         </div>
-        <div class="card green">
+        <div class="card accent-card">
           <div class="card-title">Đội phản ứng</div>
           <strong>${activeTeams}</strong>
           <p>${Math.max(1, activeTeams - 2)} đội sẵn sàng điều phối</p>
@@ -264,9 +575,9 @@
       const sorted = [...reports].sort((a, b) => b.time.localeCompare(a.time));
       reportTable.innerHTML = sorted.map(report => `
         <div class="table-row">
-          <span>${report.area}</span>
-          <span>${report.severity}</span>
-          <span>${report.status}</span>
+          <span class="area-name">${report.area}</span>
+          <span class="badge ${getSeverityClass(report.severity)}">${report.severity}</span>
+          <span class="badge ${getStatusClass(report.status)}">${report.status}</span>
           <span>${report.time}</span>
         </div>
       `).join("");
