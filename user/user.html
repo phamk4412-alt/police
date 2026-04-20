@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Người dùng - Bản đồ TP.HCM</title>
+  <title>Người dùng - AI hỗ trợ khách hàng</title>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
@@ -12,61 +12,139 @@
     :root {
       --bg: #190d18;
       --panel: #2a1626;
+      --panel-soft: #3a2136;
+      --border: #563350;
+      --text: #fff1f2;
+      --muted: #fbcfe8;
       --accent: #fb7185;
+      --blue: #60a5fa;
+      --green: #34d399;
+      --danger: #ef4444;
     }
+
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
       font-family: "Segoe UI", Tahoma, sans-serif;
-      background: var(--bg);
-      color: #fff1f2;
+      background:
+        radial-gradient(circle at top left, rgba(251, 113, 133, 0.18), transparent 24%),
+        linear-gradient(180deg, #190d18, #120914);
+      color: var(--text);
       min-height: 100vh;
     }
 
-    .wrap { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .wrap { max-width: 1340px; margin: 0 auto; padding: 24px; }
+    .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+    .eyebrow { color: #fda4af; font-size: 0.92rem; font-weight: 700; letter-spacing: 0.08em; }
+    h1 { font-size: clamp(2rem, 4vw, 2.7rem); margin-top: 6px; }
+    .sub { margin-top: 10px; color: #fecdd3; max-width: 820px; }
 
-    .top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-    }
-
-    h1 { font-size: 2.4rem; }
-
-    .content {
+    .layout {
       display: grid;
-      grid-template-columns: 380px 1fr;
+      grid-template-columns: 0.9fr 1.05fr 0.95fr;
       gap: 24px;
+      align-items: start;
     }
 
     .panel {
       background: var(--panel);
-      border: 1px solid #563350;
+      border: 1px solid var(--border);
       border-radius: 24px;
       padding: 24px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.24);
     }
 
-    #map {
-      width: 100%;
-      height: 620px;
-      border-radius: 20px;
+    .panel h2 {
+      font-size: 1.2rem;
+      margin-bottom: 16px;
     }
+
+    .news-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .news-item, .tip, .result-card {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: var(--panel-soft);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .news-item strong, .tip strong { display: block; margin-bottom: 6px; }
+    .news-item span, .tip span { color: var(--muted); font-size: 0.94rem; }
 
     .btn {
-      padding: 12px 20px;
+      padding: 12px 18px;
       border-radius: 999px;
       border: none;
       cursor: pointer;
-      font-weight: bold;
+      font-weight: 700;
     }
 
-    .logout { background: #ef4444; color: white; }
+    .logout { background: var(--danger); color: white; }
+    .primary { background: var(--accent); color: white; }
+    .secondary { background: #334155; color: white; }
+    .ai-btn { background: var(--blue); color: #08111d; }
+    .safe-btn { background: var(--green); color: #052e26; }
 
-    @media (max-width: 900px) {
-      .content { grid-template-columns: 1fr; }
-      #map { height: 480px; }
+    #map {
+      width: 100%;
+      height: 300px;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin: 14px 0 8px;
+      font-weight: 600;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: #20111d;
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea { min-height: 110px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+
+    .timeline, .tips { display: grid; gap: 10px; margin-top: 16px; }
+    .timeline-item { padding: 12px 14px; border-radius: 16px; background: rgba(255, 255, 255, 0.05); }
+    .timeline-item small { display: block; color: var(--muted); margin-top: 4px; }
+
+    .quick-prompts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .chip {
+      background: rgba(96, 165, 250, 0.16);
+      color: #bfdbfe;
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      border-radius: 999px;
+      padding: 9px 12px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    @media (max-width: 1100px) {
+      .layout { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -75,23 +153,99 @@
   <div class="wrap">
     <div class="top">
       <div>
-        <p>Vai trò: Người dùng</p>
-        <h1>Xem tin tức và báo cáo vụ án</h1>
+        <p class="eyebrow">AI CUSTOMER SUPPORT</p>
+        <h1>AI hỗ trợ khách hàng và báo cáo sự cố</h1>
+        <p class="sub">Nhập tình huống bạn đang gặp để hệ thống tự đánh giá mức ưu tiên, gợi ý hành động an toàn và hỗ trợ điền báo cáo nhanh cho lực lượng chức năng.</p>
       </div>
       <button class="btn logout" id="logoutButton">Đăng xuất</button>
     </div>
 
-    <div class="content">
-      <div class="panel">
-        <h2>Tin tức mới</h2>
-        <p>• Cảnh báo trộm cắp Quận 5</p>
-        <p>• Điều chỉnh giao thông Quận 1</p>
-      </div>
+    <div class="layout">
+      <section class="panel">
+        <h2>Tin tức và cảnh báo</h2>
+        <div class="news-list">
+          <div class="news-item">
+            <strong>Cảnh báo trộm cắp khu dân cư</strong>
+            <span>Quận 5 • 08:30</span>
+          </div>
+          <div class="news-item">
+            <strong>Điều chỉnh giao thông giờ cao điểm</strong>
+            <span>Quận 1 • 09:00</span>
+          </div>
+          <div class="news-item">
+            <strong>Khuyến nghị an toàn dịp lễ</strong>
+            <span>Toàn thành phố • 09:20</span>
+          </div>
+          <div class="news-item">
+            <strong>Cảnh báo giả mạo chuyển khoản</strong>
+            <span>Trực tuyến • 10:20</span>
+          </div>
+        </div>
 
-      <div class="panel">
-        <h2>Bản đồ TP.HCM</h2>
+        <h2 style="margin-top: 20px;">Bản đồ TP.HCM</h2>
         <div id="map"></div>
-      </div>
+      </section>
+
+      <section class="panel">
+        <h2>Báo cáo vụ việc</h2>
+        <label for="incidentType">Loại vụ việc</label>
+        <input id="incidentType" type="text" value="Mất cắp tài sản" />
+
+        <label for="incidentLocation">Tọa độ hiện tại</label>
+        <input id="incidentLocation" type="text" value="10.7769, 106.7009" />
+
+        <label for="incidentDesc">Mô tả</label>
+        <textarea id="incidentDesc">Tôi vừa phát hiện xe máy bị lấy mất trước cửa hàng, khu vực có camera gần ngã tư.</textarea>
+
+        <div class="actions">
+          <button class="btn secondary" id="locateButton">Lấy tọa độ</button>
+          <button class="btn logout" id="callButton">Gọi 113</button>
+          <button class="btn primary" id="reportButton">Gửi báo cáo</button>
+        </div>
+
+        <div class="timeline" id="timeline">
+          <div class="timeline-item">
+            Tiếp nhận báo cáo
+            <small>Ngay lập tức • Sẵn sàng</small>
+          </div>
+          <div class="timeline-item">
+            Điều phối lực lượng gần nhất
+            <small>1-3 phút • Tự động</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>AI hỗ trợ khách hàng</h2>
+        <label for="aiPrompt">Mô tả tình huống</label>
+        <textarea id="aiPrompt">Có hai người đi xe máy áp sát, giật túi rồi chạy về hướng ngã sáu.</textarea>
+
+        <div class="quick-prompts">
+          <button class="chip" data-prompt="Tôi nghi bị lừa đảo chuyển khoản qua tin nhắn giả mạo ngân hàng.">Lừa đảo chuyển khoản</button>
+          <button class="chip" data-prompt="Có người vừa giật túi của tôi trước cổng chung cư và bỏ chạy bằng xe máy.">Cướp giật</button>
+          <button class="chip" data-prompt="Tôi thấy va chạm giao thông, có người bị thương nằm giữa đường.">Tai nạn giao thông</button>
+          <button class="chip" data-prompt="Khu phố có nhóm người tụ tập gây rối và la hét lúc nửa đêm.">Gây rối trật tự</button>
+        </div>
+
+        <div class="actions">
+          <button class="btn ai-btn" id="analyzeButton">Phân tích AI</button>
+          <button class="btn safe-btn" id="applyButton">Điền báo cáo</button>
+        </div>
+
+        <div class="result-card" style="margin-top: 16px;">
+          <strong id="aiCategory">Chờ phân tích</strong>
+          <div class="status-badge" id="aiPriority">Mức ưu tiên</div>
+          <p style="margin-top: 14px; color: var(--muted);" id="aiGuidance"></p>
+          <p style="margin-top: 12px;" id="aiNextStep"></p>
+        </div>
+
+        <div class="tips">
+          <div class="tip">
+            <strong>Mẹo để AI hỗ trợ tốt hơn</strong>
+            <span>Nêu rõ vị trí, thời gian, số người liên quan, hướng di chuyển và dấu hiệu nhận dạng.</span>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 
@@ -100,50 +254,188 @@
       window.location.href = "../index.html";
     }
 
-    mapboxgl.accessToken = 'pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q';
+    const aiPrompt = document.getElementById("aiPrompt");
+    const aiCategory = document.getElementById("aiCategory");
+    const aiPriority = document.getElementById("aiPriority");
+    const aiGuidance = document.getElementById("aiGuidance");
+    const aiNextStep = document.getElementById("aiNextStep");
+    const incidentType = document.getElementById("incidentType");
+    const incidentLocation = document.getElementById("incidentLocation");
+    const incidentDesc = document.getElementById("incidentDesc");
+    const timeline = document.getElementById("timeline");
+
+    function containsAny(text, keywords) {
+      return keywords.some(keyword => text.includes(keyword));
+    }
+
+    function analyzeIncident(text) {
+      const normalized = (text || "").trim().toLowerCase();
+
+      if (!normalized) {
+        return {
+          category: "Chưa xác định",
+          priority: "Trung bình",
+          guidance: "Mô tả ngắn tình huống bạn đang gặp để AI đề xuất hướng xử lý.",
+          nextStep: "Gõ địa điểm, dấu hiệu nhận dạng, số người liên quan và mức khẩn cấp.",
+          emergency: false
+        };
+      }
+
+      if (containsAny(normalized, ["cuop", "cướp", "dao", "súng", "sung", "đánh", "danh", "hành hung", "hanh hung", "giật"])) {
+        return {
+          category: "Nguy cơ bạo lực",
+          priority: "Khẩn cấp",
+          guidance: "Rời khỏi khu vực nguy hiểm nếu có thể, giữ khoảng cách an toàn và ưu tiên gọi 113 ngay.",
+          nextStep: "Không tự đối đầu. Ghi nhớ đặc điểm nhận dạng và chia sẻ vị trí hiện tại cho lực lượng hỗ trợ.",
+          emergency: true
+        };
+      }
+
+      if (containsAny(normalized, ["mất cắp", "mat cap", "trộm", "trom", "xe bị lấy", "xe bi lay"])) {
+        return {
+          category: "Mất cắp tài sản",
+          priority: "Cao",
+          guidance: "Kiểm tra lần cuối vị trí tài sản, chụp lại hiện trường và khóa các tài khoản liên quan nếu có.",
+          nextStep: "Chuẩn bị biển số, thời gian xảy ra, camera gần nhất và người chứng kiến để gửi báo cáo nhanh.",
+          emergency: false
+        };
+      }
+
+      if (containsAny(normalized, ["lừa đảo", "lua dao", "chuyển khoản", "chuyen khoan", "giả mạo", "gia mao", "otp"])) {
+        return {
+          category: "Nghi ngờ lừa đảo",
+          priority: "Cao",
+          guidance: "Ngưng chuyển tiền, khóa tài khoản ngân hàng hoặc ví điện tử nếu vừa cung cấp thông tin nhạy cảm.",
+          nextStep: "Lưu lại số điện thoại, tài khoản nhận tiền, tin nhắn và ảnh chụp màn hình để cơ quan chức năng xác minh.",
+          emergency: false
+        };
+      }
+
+      if (containsAny(normalized, ["tai nạn", "tai nan", "va chạm", "va cham", "cháy", "chay", "thương", "thuong"])) {
+        return {
+          category: "Sự cố hiện trường",
+          priority: "Khẩn cấp",
+          guidance: "Đảm bảo an toàn cho người bị nạn trước, tránh tụ tập giữa đường và gọi hỗ trợ khẩn cấp nếu có người bị thương.",
+          nextStep: "Cung cấp mốc vị trí, số người liên quan và tình trạng giao thông để đội phản ứng tiếp cận nhanh hơn.",
+          emergency: true
+        };
+      }
+
+      if (containsAny(normalized, ["gây rối", "gay roi", "ồn ào", "on ao", "tụ tập", "tu tap"])) {
+        return {
+          category: "Mất trật tự công cộng",
+          priority: "Trung bình",
+          guidance: "Giữ khoảng cách quan sát an toàn, tránh quay cận mặt nếu tình hình đang căng thẳng.",
+          nextStep: "Ghi nhận số người, phương tiện và thời điểm để gửi báo cáo chính xác hơn.",
+          emergency: false
+        };
+      }
+
+      return {
+        category: "Tình huống cần xác minh",
+        priority: "Trung bình",
+        guidance: "AI chưa nhận diện rõ loại vụ việc nhưng bạn vẫn nên gửi mô tả ngắn gọn kèm vị trí và thời gian xảy ra.",
+        nextStep: "Nếu có dấu hiệu đe dọa trực tiếp đến tính mạng, hãy gọi 113 ngay thay vì chờ phản hồi trong ứng dụng.",
+        emergency: false
+      };
+    }
+
+    function renderTimeline(isEmergency) {
+      timeline.innerHTML = isEmergency ? `
+        <div class="timeline-item">
+          Ưu tiên gọi 113
+          <small>Ngay lập tức • Khẩn cấp</small>
+        </div>
+        <div class="timeline-item">
+          Chia sẻ vị trí hiện tại
+          <small>Dưới 1 phút • Cần làm ngay</small>
+        </div>
+      ` : `
+        <div class="timeline-item">
+          Tiếp nhận báo cáo
+          <small>Ngay lập tức • Sẵn sàng</small>
+        </div>
+        <div class="timeline-item">
+          Xác minh thông tin
+          <small>1-3 phút • Tự động</small>
+        </div>
+      `;
+    }
+
+    function applyAiAnalysis(syncForm) {
+      const result = analyzeIncident(aiPrompt.value);
+      aiCategory.textContent = result.category;
+      aiPriority.textContent = result.priority;
+      aiPriority.style.background = result.emergency ? "rgba(239, 68, 68, 0.18)" : "rgba(52, 211, 153, 0.18)";
+      aiPriority.style.color = result.emergency ? "#fecaca" : "#bbf7d0";
+      aiGuidance.textContent = result.guidance;
+      aiNextStep.textContent = result.nextStep;
+      renderTimeline(result.emergency);
+
+      if (syncForm) {
+        incidentType.value = result.category;
+        incidentDesc.value = aiPrompt.value.trim();
+      }
+    }
+
+    document.getElementById("analyzeButton").addEventListener("click", () => applyAiAnalysis(false));
+    document.getElementById("applyButton").addEventListener("click", () => applyAiAnalysis(true));
+
+    document.querySelectorAll(".chip").forEach(button => {
+      button.addEventListener("click", () => {
+        aiPrompt.value = button.dataset.prompt;
+        applyAiAnalysis(true);
+      });
+    });
+
+    document.getElementById("locateButton").addEventListener("click", () => {
+      incidentLocation.value = "10.7756, 106.7019";
+    });
+
+    document.getElementById("callButton").addEventListener("click", () => {
+      alert("Đang kết nối tổng đài cảnh sát 113.");
+    });
+
+    document.getElementById("reportButton").addEventListener("click", () => {
+      alert(`Đã ghi nhận vụ việc '${incidentType.value}' tại ${incidentLocation.value}.`);
+    });
+
+    mapboxgl.accessToken = "pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q";
 
     const map = new mapboxgl.Map({
-      container: 'map',
-      style: 'mapbox://styles/mapbox/dark-v11',
+      container: "map",
+      style: "mapbox://styles/mapbox/dark-v11",
       center: [106.7009, 10.7769],
       zoom: 10
     });
 
-    map.on('load', () => {
-      // load geojson
-      map.addSource('hcm', {
-        type: 'geojson',
-        data: '../hcm-boundary.geojson'
+    map.on("load", () => {
+      map.addSource("hcm", {
+        type: "geojson",
+        data: "../hcm-boundary.geojson"
       });
 
-      // fill vùng
       map.addLayer({
-        id: 'hcm-fill',
-        type: 'fill',
-        source: 'hcm',
+        id: "hcm-fill",
+        type: "fill",
+        source: "hcm",
         paint: {
-          'fill-color': '#60a5fa',
-          'fill-opacity': 0.2
+          "fill-color": "#60a5fa",
+          "fill-opacity": 0.2
         }
       });
 
-      // viền
       map.addLayer({
-        id: 'hcm-line',
-        type: 'line',
-        source: 'hcm',
+        id: "hcm-line",
+        type: "line",
+        source: "hcm",
         paint: {
-          'line-color': '#1e40af',
-          'line-width': 3
+          "line-color": "#1e40af",
+          "line-width": 3
         }
       });
 
-      const hcmBounds = [
-        [106.35, 10.35],
-        [107.05, 11.15]
-      ];
-
-      map.fitBounds(hcmBounds, {
+      map.fitBounds([[106.35, 10.35], [107.05, 11.15]], {
         padding: 30,
         duration: 0
       });
@@ -153,6 +445,8 @@
       sessionStorage.removeItem("policeRole");
       window.location.href = "../index.html";
     });
+
+    applyAiAnalysis(true);
   </script>
 </body>
 </html>
