@@ -645,6 +645,12 @@
               <button class="btn primary" id="reportButton">Gửi báo cáo</button>
             </div>
 
+            <label for="apiBaseInput">Địa chỉ API</label>
+            <input id="apiBaseInput" type="text" placeholder="Ví dụ: http://192.168.1.10:5055" />
+            <div class="actions">
+              <button class="btn secondary" id="saveApiBaseButton">Lưu địa chỉ API</button>
+            </div>
+
             <div class="inline-note" id="reportStatus">Sẵn sàng tiếp nhận báo cáo. Bạn có thể lấy vị trí hiện tại trước khi gửi để tăng độ chính xác.</div>
           </section>
 
@@ -807,6 +813,8 @@
     const reportStatus = document.getElementById("reportStatus");
     const incidentType = document.getElementById("incidentType");
     const incidentDesc = document.getElementById("incidentDesc");
+    const apiBaseInput = document.getElementById("apiBaseInput");
+    const saveApiBaseButton = document.getElementById("saveApiBaseButton");
     const API_BASE = window.POLICE_API_BASE || localStorage.getItem("policeApiBase") || "";
 
     function apiUrl(path) {
@@ -827,6 +835,18 @@
 
       return { message: text };
     }
+
+    apiBaseInput.value = API_BASE;
+    saveApiBaseButton.addEventListener("click", () => {
+      const value = apiBaseInput.value.trim().replace(/\/$/, "");
+      if (value) {
+        localStorage.setItem("policeApiBase", value);
+        reportStatus.textContent = `Đã lưu địa chỉ API: ${value}`;
+      } else {
+        localStorage.removeItem("policeApiBase");
+        reportStatus.textContent = "Đã xóa địa chỉ API đã lưu. Trang sẽ dùng cùng domain hiện tại.";
+      }
+    });
 
     const statisticsPanel = document.getElementById("statisticsPanel");
     const statisticsList = document.getElementById("statisticsList");

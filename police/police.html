@@ -817,6 +817,13 @@
             <a class="map-link" href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer">Mở Mapbox</a>
             <a class="map-link secondary" href="../index.html">Về đăng nhập</a>
           </div>
+
+          <div style="margin-top: 14px;">
+            <input id="apiBaseInput" type="text" placeholder="Địa chỉ API, ví dụ http://192.168.1.10:5055" style="width:100%;min-height:46px;border-radius:14px;border:1px solid rgba(110, 135, 190, 0.16);background:#24304c;color:#f5f8ff;padding:0 14px;font:inherit;" />
+            <div class="map-actions">
+              <button class="btn btn-primary" id="saveApiBaseButton" style="min-height:44px;">Lưu địa chỉ API</button>
+            </div>
+          </div>
         </div>
 
         <div class="side">
@@ -905,6 +912,8 @@
     const liveAlert = document.getElementById("liveAlert");
     const liveAlertText = document.getElementById("liveAlertText");
     const incidentFeed = document.getElementById("incidentFeed");
+    const apiBaseInput = document.getElementById("apiBaseInput");
+    const saveApiBaseButton = document.getElementById("saveApiBaseButton");
     const API_BASE = window.POLICE_API_BASE || localStorage.getItem("policeApiBase") || "";
     let refreshTimer;
     let liveReportMarkers = [];
@@ -932,6 +941,18 @@
 
       return [];
     }
+
+    apiBaseInput.value = API_BASE;
+    saveApiBaseButton.addEventListener("click", () => {
+      const value = apiBaseInput.value.trim().replace(/\/$/, "");
+      if (value) {
+        localStorage.setItem("policeApiBase", value);
+        showLiveAlert(`Đã lưu địa chỉ API: ${value}`);
+      } else {
+        localStorage.removeItem("policeApiBase");
+        showLiveAlert("Đã xóa địa chỉ API đã lưu.");
+      }
+    });
 
     function showLiveAlert(message) {
       liveAlertText.textContent = message;
