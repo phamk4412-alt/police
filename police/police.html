@@ -355,15 +355,15 @@
     }
 
     .mapboxgl-popup {
-      max-width: 340px !important;
+      max-width: 300px !important;
     }
 
     .mapboxgl-popup-content {
       padding: 0;
-      border-radius: 20px;
+      border-radius: 18px;
       overflow: hidden;
       background: #ffffff;
-      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.28);
+      box-shadow: 0 16px 30px rgba(15, 23, 42, 0.24);
     }
 
     .mapboxgl-popup-close-button {
@@ -375,22 +375,22 @@
     }
 
     .map-popup {
-      padding: 18px 20px 16px;
+      padding: 14px 16px 13px;
       color: #51607a;
-      line-height: 1.6;
-      font-size: 0.96rem;
+      line-height: 1.5;
+      font-size: 0.9rem;
     }
 
     .map-popup strong {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       color: #f59e0b;
-      font-size: 1.9rem;
+      font-size: 1.45rem;
       line-height: 1.1;
     }
 
     .map-popup p {
-      margin: 0 0 14px;
+      margin: 0 0 10px;
       color: #66758f;
     }
 
@@ -398,8 +398,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
-      font-size: 0.95rem;
+      gap: 10px;
+      font-size: 0.85rem;
     }
 
     .map-popup-time {
@@ -407,8 +407,8 @@
     }
 
     .map-popup-status {
-      padding: 8px 14px;
-      border-radius: 10px;
+      padding: 6px 10px;
+      border-radius: 8px;
       background: #d9fbe6;
       color: #199a5a;
       font-weight: 700;
@@ -794,19 +794,19 @@
       const incidents = [
         {
           level: "high",
-          coords: [106.7009, 10.7769],
+          coords: [106.6981, 10.7766],
           title: "Cướp giật tài sản",
           detail: "Quận 1, TP.HCM. Mức độ cao, cần đội gần nhất tiếp cận."
         },
         {
           level: "medium",
-          coords: [106.6602, 10.7626],
+          coords: [106.6866, 10.7823],
           title: "Va chạm giao thông",
           detail: "Quận 3, TP.HCM. Đang điều phối luồng giao thông."
         },
         {
           level: "low",
-          coords: [106.7298, 10.8039],
+          coords: [106.7548, 10.8487],
           title: "Hỗ trợ dân sự",
           detail: "TP Thủ Đức, TP.HCM. Yêu cầu xác minh và hướng dẫn người dân."
         }
@@ -861,8 +861,8 @@
         });
 
         const hcmBounds = [
-          [106.35, 10.35],
-          [107.05, 11.15]
+          [106.54, 10.34],
+          [107.00, 10.95]
         ];
 
         map.fitBounds(hcmBounds, {
