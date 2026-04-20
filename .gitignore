@@ -1,0 +1,22 @@
+﻿# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Build Folders
+bin/
+obj/
+
+# Rider
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# Other
+*.log
+*.tlog
+*.zip
+*.userprefs
