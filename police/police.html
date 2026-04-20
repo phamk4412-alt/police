@@ -354,6 +354,15 @@
       transform: scale(1.08);
     }
 
+    .incident-marker.live-report {
+      width: 22px;
+      height: 22px;
+      border-width: 4px;
+      background: #ff3747 !important;
+      animation: urgentPulse 1.2s ease-in-out infinite;
+      box-shadow: 0 0 0 12px rgba(255, 55, 71, 0.16);
+    }
+
     .mapboxgl-popup {
       max-width: 340px !important;
     }
@@ -438,6 +447,50 @@
 
     .popup-btn.resolve {
       background: #16a34a;
+    }
+
+    .incident-feed {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .incident-feed-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(110, 135, 190, 0.16);
+      background: rgba(53, 71, 102, 0.72);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 12px 14px;
+      cursor: pointer;
+    }
+
+    .incident-feed-item:hover {
+      border-color: rgba(255, 55, 71, 0.36);
+      background: rgba(66, 84, 118, 0.92);
+    }
+
+    .incident-feed-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+    }
+
+    .incident-feed-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #c9d7f1;
+      font-size: 0.84rem;
+    }
+
+    .incident-feed-empty {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.92rem;
     }
 
     @keyframes urgentPulse {
@@ -769,6 +822,16 @@
         <div class="side">
           <section class="panel">
             <div class="panel-head">
+              <h2>Vụ mới</h2>
+              <span class="panel-note">Bấm để nhảy tới vị trí</span>
+            </div>
+            <div class="incident-feed" id="incidentFeed">
+              <div class="incident-feed-empty">Đang chờ báo cáo mới từ người dùng.</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
               <h2>Chấm công</h2>
               <span class="attendance-time" id="clock">12:06</span>
             </div>
@@ -841,8 +904,10 @@
     const logoutButton = document.getElementById("logoutButton");
     const liveAlert = document.getElementById("liveAlert");
     const liveAlertText = document.getElementById("liveAlertText");
+    const incidentFeed = document.getElementById("incidentFeed");
     let refreshTimer;
     let liveReportMarkers = [];
+    let liveReportEntries = new Map();
     let seenReportIds = new Set();
     let latestToastTimer;
     let audioContext;
@@ -944,6 +1009,45 @@
       }
     };
 
+    function renderIncidentFeed(reports, map) {
+      const userReports = reports.filter((report) => report.Source === "user");
+
+      if (userReports.length === 0) {
+        incidentFeed.innerHTML = `<div class="incident-feed-empty">Đang chờ báo cáo mới từ người dùng.</div>`;
+        return;
+      }
+
+      incidentFeed.innerHTML = userReports
+        .slice(0, 8)
+        .map((report) => `
+          <button class="incident-feed-item" type="button" data-incident-id="${report.Id}">
+            <strong>${report.Title}</strong>
+            <div class="incident-feed-meta">
+              <span>${report.TimeLabel || "--:--"}</span>
+              <span>${report.Status || "Moi tiep nhan"}</span>
+            </div>
+          </button>
+        `)
+        .join("");
+
+      incidentFeed.querySelectorAll("[data-incident-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const incidentId = button.getAttribute("data-incident-id");
+          const liveEntry = liveReportEntries.get(incidentId);
+          if (!liveEntry) {
+            return;
+          }
+
+          map.flyTo({
+            center: liveEntry.lngLat,
+            zoom: 13,
+            essential: true
+          });
+          liveEntry.popup.addTo(map);
+        });
+      });
+    }
+
     document.addEventListener("click", () => {
       ensureAudioReady();
     }, { once: true });
@@ -967,6 +1071,7 @@
       function clearLiveReports() {
         liveReportMarkers.forEach((marker) => marker.remove());
         liveReportMarkers = [];
+        liveReportEntries.clear();
       }
 
       function renderLiveReports(reports) {
@@ -974,7 +1079,11 @@
 
         reports.forEach((report) => {
           const markerNode = document.createElement("div");
-          markerNode.className = `incident-marker ${report.Level}`;
+          const markerClasses = ["incident-marker", report.Source === "user" ? "high" : report.Level];
+          if (report.Source === "user") {
+            markerClasses.push("live-report");
+          }
+          markerNode.className = markerClasses.join(" ");
           markerNode.dataset.reportId = report.Id;
           markerNode.setAttribute("role", "button");
           markerNode.setAttribute("tabindex", "0");
@@ -1007,7 +1116,14 @@
           });
 
           liveReportMarkers.push(marker);
+          liveReportEntries.set(report.Id, {
+            marker,
+            popup,
+            lngLat: [report.Longitude, report.Latitude]
+          });
         });
+
+        renderIncidentFeed(reports, map);
       }
 
       async function refreshLiveReports() {
@@ -1037,6 +1153,13 @@
               zoom: 13,
               essential: true
             });
+
+            const liveEntry = liveReportEntries.get(latestReport.Id);
+            if (liveEntry) {
+              window.setTimeout(() => {
+                liveEntry.popup.addTo(map);
+              }, 450);
+            }
           }
         } catch (error) {
           console.error("Khong tai duoc vu viec moi", error);

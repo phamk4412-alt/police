@@ -1021,16 +1021,62 @@
       }
     });
 
-    document.getElementById("reportButton").addEventListener("click", () => {
+    document.getElementById("reportButton").addEventListener("click", async () => {
+      const reportButton = document.getElementById("reportButton");
       const type = incidentType.value.trim() || "Chưa phân loại";
-      const location = incidentLocation.value.trim() || "Chưa có tọa độ";
+      const location = incidentLocation.value.trim();
       const description = incidentDesc.value.trim();
 
-      reportStatus.textContent = `Đã ghi nhận báo cáo "${type}" tại ${location}.`;
+      if (!location) {
+        reportStatus.textContent = "Bạn cần nhập tọa độ trước khi gửi báo cáo.";
+        return;
+      }
 
-      alert(
-        `Đã ghi nhận vụ việc "${type}" tại ${location}.${description ? `\n\nMô tả: ${description}` : ""}`
-      );
+      const normalizedType = type.toLowerCase();
+      const level =
+        normalizedType.includes("cướp") ||
+        normalizedType.includes("cuop") ||
+        normalizedType.includes("tai nạn") ||
+        normalizedType.includes("tai nan") ||
+        normalizedType.includes("cháy") ||
+        normalizedType.includes("chay")
+          ? "high"
+          : normalizedType.includes("gây rối") ||
+            normalizedType.includes("gay roi") ||
+            normalizedType.includes("trộm") ||
+            normalizedType.includes("trom")
+            ? "medium"
+            : "low";
+
+      reportButton.disabled = true;
+      reportStatus.textContent = "Đang gửi báo cáo lên trung tâm điều hành...";
+
+      try {
+        const response = await fetch("/api/incidents", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title: type,
+            location,
+            detail: description,
+            level
+          })
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.message || "Không thể gửi báo cáo.");
+        }
+
+        reportStatus.textContent = `Đã gửi báo cáo "${type}" thành công. Phía cảnh sát sẽ nhận thông báo sau vài giây.`;
+      } catch (error) {
+        reportStatus.textContent = error.message || "Gửi báo cáo thất bại.";
+      } finally {
+        reportButton.disabled = false;
+      }
     });
 
     document.getElementById("logoutButton").addEventListener("click", () => {
