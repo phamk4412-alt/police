@@ -3,62 +3,283 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Dashboard</title>
+  <title>Quản trị - Trung tâm điều hành</title>
   <style>
     :root {
-      --bg: #ffffff;
-      --panel: #ffffff;
-      --panel-soft: #f8fafc;
-      --border: #dbe4f0;
-      --text: #0f172a;
-      --muted: #64748b;
-      --cyan: #0891b2;
-      --blue: #2563eb;
-      --red: #ef4444;
-      --green: #16a34a;
-      --shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+      color-scheme: dark;
+      --bg: #071127;
+      --bg-soft: #0d1830;
+      --sidebar: rgba(8, 14, 28, 0.96);
+      --panel: #1d2a45;
+      --panel-2: #253654;
+      --panel-soft: rgba(255, 255, 255, 0.04);
+      --line: rgba(130, 160, 220, 0.18);
+      --text: #f5f8ff;
+      --muted: #93a7c8;
+      --cyan: #4fd1ff;
+      --blue: #4c98ff;
+      --red: #ff5f6d;
+      --green: #22e27a;
+      --yellow: #facc15;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
     }
 
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
-      font-family: "Segoe UI", Tahoma, sans-serif;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background:
-        radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 28%),
-        linear-gradient(180deg, #ffffff, #f7fbff);
+        radial-gradient(circle at top left, rgba(76, 152, 255, 0.12), transparent 26%),
+        linear-gradient(180deg, #030919 0%, var(--bg) 100%);
       color: var(--text);
     }
 
-    .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 48px; }
-    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
-    .eyebrow { margin: 0 0 6px; color: var(--cyan); font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; }
-    h1 { margin: 0; font-size: clamp(2rem, 4vw, 2.6rem); }
-    .sub { margin: 10px 0 0; color: var(--muted); max-width: 720px; }
-    .btn { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; cursor: pointer; }
-    .logout { background: var(--red); color: white; }
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 24px; }
-    .card, .panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 24px;
+    .layout {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+    }
+
+    .sidebar {
+      background: var(--sidebar);
+      border-right: 1px solid rgba(110, 135, 190, 0.12);
+      padding: 28px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(110, 135, 190, 0.12);
+    }
+
+    .brand-badge,
+    .header-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #1f66ff, #2a8cff);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      font-size: 1.35rem;
+      font-weight: 800;
+    }
+
+    .brand-title,
+    .header-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .brand-subtitle,
+    .header-copy,
+    .sub,
+    .updated,
+    .card p,
+    .metric-note,
+    .breakdown {
+      color: var(--muted);
+    }
+
+    .nav-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(16, 24, 44, 0.92);
+      border: 1px solid rgba(110, 135, 190, 0.14);
+    }
+
+    .nav-card h2 {
+      margin-bottom: 10px;
+      font-size: 1.02rem;
+    }
+
+    .nav-card p {
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .nav-item {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(27, 39, 67, 0.96);
+      border: 1px solid rgba(110, 135, 190, 0.14);
+      font-weight: 700;
+      color: #dce7ff;
+    }
+
+    .main {
       padding: 22px;
+    }
+
+    .header {
+      background: #121d39;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
       box-shadow: var(--shadow);
     }
 
-    .card-title { color: var(--muted); font-size: 0.95rem; font-weight: 600; }
-    .card strong { display: block; font-size: 2rem; margin-top: 10px; }
-    .card p { margin: 10px 0 0; color: var(--muted); }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .eyebrow {
+      margin-bottom: 6px;
+      color: #8edbff;
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+    }
+
+    .sub {
+      margin-top: 10px;
+      max-width: 820px;
+      line-height: 1.7;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .status-pill {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: rgba(12, 27, 50, 0.92);
+      border: 1px solid rgba(110, 135, 190, 0.16);
+      color: #dce7ff;
+      font-weight: 700;
+      font-size: 0.92rem;
+    }
+
+    .btn {
+      min-height: 46px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 999px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .logout {
+      background: linear-gradient(135deg, #ff5f6d, #ff3131);
+      color: white;
+      box-shadow: 0 18px 34px rgba(255, 49, 49, 0.18);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, #23b5d3, #2979ff);
+      color: white;
+      box-shadow: 0 18px 34px rgba(41, 121, 255, 0.22);
+    }
+
+    .ghost {
+      background: rgba(18, 32, 58, 0.95);
+      color: #cfe3fb;
+      border: 1px solid rgba(140, 180, 255, 0.14);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      margin: 18px 0;
+    }
+
+    .card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .card {
+      padding: 18px 18px 16px;
+    }
+
+    .card-title {
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .card strong {
+      display: block;
+      font-size: 1.8rem;
+      margin-top: 12px;
+    }
+
     .cyan strong { color: var(--cyan); }
     .blue strong { color: var(--blue); }
     .red strong { color: var(--red); }
     .green strong { color: var(--green); }
 
-    .main-grid { display: grid; grid-template-columns: 1.55fr 0.82fr 0.95fr; gap: 18px; align-items: start; }
-    .panel h2 { margin: 0 0 18px; font-size: 1.15rem; }
-    .panel h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--muted); }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1.55fr 0.82fr 0.95fr;
+      gap: 18px;
+      align-items: start;
+    }
 
-    .table-head, .table-row {
+    .panel {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      margin-bottom: 18px;
+      font-size: 1.15rem;
+    }
+
+    .table-head,
+    .table-row {
       display: grid;
       grid-template-columns: 1.3fr 0.9fr 1fr 0.7fr;
       gap: 10px;
@@ -72,118 +293,259 @@
       margin-bottom: 10px;
     }
 
-    .table-body { display: grid; gap: 10px; }
+    .table-body {
+      display: grid;
+      gap: 10px;
+    }
+
     .table-row {
       padding: 12px 14px;
       background: var(--panel-soft);
-      border: 1px solid #e5edf7;
+      border: 1px solid rgba(140, 180, 255, 0.12);
       border-radius: 16px;
       font-size: 0.95rem;
     }
 
-    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
-    .ghost { background: #e2e8f0; color: var(--text); }
-    .primary { background: #06b6d4; color: white; }
-    .updated { color: var(--muted); font-size: 0.9rem; }
+    .table-row span:nth-child(2) {
+      color: #ffe082;
+      font-weight: 700;
+    }
 
-    .metric-stack { display: grid; gap: 12px; margin-bottom: 14px; }
+    .table-row span:nth-child(3) {
+      color: #dce7ff;
+      font-weight: 600;
+    }
+
+    .table-row span:nth-child(4) {
+      color: var(--muted);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+      align-items: center;
+    }
+
+    .updated {
+      font-size: 0.9rem;
+    }
+
+    .metric-stack {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
     .metric {
       background: var(--panel-soft);
-      border: 1px solid #e5edf7;
+      border: 1px solid rgba(140, 180, 255, 0.12);
       border-radius: 18px;
       padding: 14px 16px;
     }
 
-    .metric-title { color: var(--muted); font-size: 0.9rem; font-weight: 700; }
-    .metric-value { margin-top: 6px; font-size: 1.5rem; font-weight: 800; }
-    .metric-note { margin-top: 4px; color: var(--muted); font-size: 0.9rem; }
+    .metric-title {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+    }
 
-    .breakdown { color: #475569; font-size: 0.92rem; line-height: 1.5; }
+    .metric-value {
+      margin-top: 6px;
+      font-size: 1.5rem;
+      font-weight: 800;
+    }
 
-    input, textarea {
+    .metric-note {
+      margin-top: 4px;
+      font-size: 0.9rem;
+    }
+
+    .breakdown {
+      font-size: 0.92rem;
+      line-height: 1.7;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.94rem;
+      font-weight: 700;
+    }
+
+    input,
+    textarea {
       width: 100%;
       margin-top: 10px;
       padding: 12px 14px;
       border-radius: 14px;
-      border: 1px solid #cbd5e1;
-      background: var(--panel-soft);
+      border: 1px solid rgba(140, 180, 255, 0.14);
+      background: rgba(2, 8, 18, 0.92);
       color: var(--text);
       font: inherit;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
-    textarea { min-height: 150px; resize: vertical; }
-    .publish-status { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
-    .publish-status input { margin-top: 0; }
+    input:focus,
+    textarea:focus {
+      border-color: rgba(35, 181, 211, 0.7);
+      box-shadow: 0 0 0 4px rgba(35, 181, 211, 0.16);
+    }
+
+    textarea {
+      min-height: 150px;
+      resize: vertical;
+    }
+
+    .publish-status {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 14px;
+    }
+
+    .publish-status input {
+      margin-top: 0;
+    }
 
     @media (max-width: 1024px) {
-      .main-grid { grid-template-columns: 1fr; }
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid rgba(110, 135, 190, 0.12);
+      }
+
+      .stats-grid,
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .main {
+        padding: 16px;
+      }
+
+      .header {
+        padding: 18px;
+      }
+
+      .header-left {
+        align-items: flex-start;
+      }
+
+      .publish-status {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .table-head,
+      .table-row {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="top">
-      <div>
-        <p class="eyebrow">ADMIN DASHBOARD</p>
-        <h1>Quản trị báo cáo, thống kê và tin tức</h1>
-        <p class="sub">Theo dõi số lượng báo cáo theo mức độ, trạng thái xử lý và khu vực nổi bật. Dữ liệu thống kê được tính lại ngay khi admin làm mới báo cáo hoặc đăng tin mới.</p>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">A</div>
+        <div>
+          <div class="brand-title">Trung tâm quản trị</div>
+          <div class="brand-subtitle">Điều phối báo cáo và nội dung công khai</div>
+        </div>
       </div>
-      <button class="btn logout" id="logoutButton">Đăng xuất</button>
-    </div>
 
-    <div class="stats-grid" id="overviewCards"></div>
-
-    <div class="main-grid">
-      <section class="panel">
-        <h2>Báo cáo hiện trường</h2>
-        <div class="table-head">
-          <span>Khu vực</span>
-          <span>Mức độ</span>
-          <span>Trạng thái</span>
-          <span>Giờ</span>
-        </div>
-        <div class="table-body" id="reportTable"></div>
-        <div class="actions">
-          <button class="btn primary" id="exportButton">Xuất báo cáo</button>
-          <button class="btn ghost" id="refreshButton">Làm mới dữ liệu</button>
-          <span class="updated" id="updatedAt"></span>
-        </div>
+      <section class="nav-card">
+        <h2>Tổng quan ca trực</h2>
+        <p>Theo dõi báo cáo mới, nhịp xuất bản tin tức và khu vực cần ưu tiên để giữ bảng điều khiển luôn đồng bộ với trung tâm điều hành.</p>
       </section>
 
-      <section class="panel">
-        <h2>Thống kê nhanh</h2>
-        <div class="metric-stack">
-          <div class="metric">
-            <div class="metric-title">Tỷ lệ xử lý</div>
-            <div class="metric-value" id="handledRate" style="color: var(--green);"></div>
-            <div class="metric-note" id="handledRateNote"></div>
-          </div>
-          <div class="metric">
-            <div class="metric-title">Mức khẩn</div>
-            <div class="metric-value" id="urgentRate" style="color: var(--red);"></div>
-            <div class="metric-note" id="urgentRateNote"></div>
-          </div>
-          <div class="metric">
-            <div class="metric-title">Khu vực nổi bật</div>
-            <div class="metric-value" id="focusArea" style="color: var(--blue);"></div>
-            <div class="metric-note" id="focusAreaNote"></div>
-          </div>
-        </div>
-        <div class="breakdown" id="breakdown"></div>
-      </section>
+      <div class="nav-list">
+        <div class="nav-item">Báo cáo hiện trường</div>
+        <div class="nav-item">Thống kê nhanh</div>
+        <div class="nav-item">Xuất bản tin tức</div>
+      </div>
+    </aside>
 
-      <section class="panel">
-        <h2>Cập nhật tin tức</h2>
-        <label for="newsTitle">Tiêu đề</label>
-        <input id="newsTitle" type="text" value="Cảnh báo giao thông khu vực trung tâm" />
-        <label for="newsContent">Nội dung</label>
-        <textarea id="newsContent">Cập nhật tình hình hiện trường và hướng dẫn người dân đi lại an toàn qua các tuyến thay thế.</textarea>
-        <div class="publish-status">
-          <input id="publishStatus" type="text" value="Chờ xuất bản" />
-          <button class="btn primary" id="publishButton">Đăng tin</button>
+    <main class="main">
+      <header class="header">
+        <div class="header-left">
+          <div class="header-logo">A</div>
+          <div>
+            <p class="eyebrow">Admin Control</p>
+            <h1>Quản trị báo cáo, thống kê và tin tức</h1>
+            <p class="sub">Theo dõi số lượng báo cáo theo mức độ, trạng thái xử lý và khu vực nổi bật. Dữ liệu thống kê được tính lại ngay khi admin làm mới báo cáo hoặc đăng tin mới.</p>
+          </div>
         </div>
-      </section>
-    </div>
+
+        <div class="header-right">
+          <div class="status-pill">Ca trực quản trị đang hoạt động</div>
+          <button class="btn logout" id="logoutButton">Đăng xuất</button>
+        </div>
+      </header>
+
+      <div class="stats-grid" id="overviewCards"></div>
+
+      <div class="main-grid">
+        <section class="panel">
+          <h2>Báo cáo hiện trường</h2>
+          <div class="table-head">
+            <span>Khu vực</span>
+            <span>Mức độ</span>
+            <span>Trạng thái</span>
+            <span>Giờ</span>
+          </div>
+          <div class="table-body" id="reportTable"></div>
+          <div class="actions">
+            <button class="btn primary" id="exportButton">Xuất báo cáo</button>
+            <button class="btn ghost" id="refreshButton">Làm mới dữ liệu</button>
+            <span class="updated" id="updatedAt"></span>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Thống kê nhanh</h2>
+          <div class="metric-stack">
+            <div class="metric">
+              <div class="metric-title">Tỷ lệ xử lý</div>
+              <div class="metric-value" id="handledRate" style="color: var(--green);"></div>
+              <div class="metric-note" id="handledRateNote"></div>
+            </div>
+            <div class="metric">
+              <div class="metric-title">Mức khẩn</div>
+              <div class="metric-value" id="urgentRate" style="color: var(--red);"></div>
+              <div class="metric-note" id="urgentRateNote"></div>
+            </div>
+            <div class="metric">
+              <div class="metric-title">Khu vực nổi bật</div>
+              <div class="metric-value" id="focusArea" style="color: var(--blue);"></div>
+              <div class="metric-note" id="focusAreaNote"></div>
+            </div>
+          </div>
+          <div class="breakdown" id="breakdown"></div>
+        </section>
+
+        <section class="panel">
+          <h2>Cập nhật tin tức</h2>
+          <label for="newsTitle">Tiêu đề</label>
+          <input id="newsTitle" type="text" value="Cảnh báo giao thông khu vực trung tâm" />
+          <label for="newsContent">Nội dung</label>
+          <textarea id="newsContent">Cập nhật tình hình hiện trường và hướng dẫn người dân đi lại an toàn qua các tuyến thay thế.</textarea>
+          <div class="publish-status">
+            <input id="publishStatus" type="text" value="Chờ xuất bản" />
+            <button class="btn primary" id="publishButton">Đăng tin</button>
+          </div>
+        </section>
+      </div>
+    </main>
   </div>
 
   <script>
