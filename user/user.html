@@ -74,8 +74,10 @@
       right: 2%;
       width: min(320px, 48vw);
       height: min(320px, 48vw);
-      background: url("police-logo.png") center / contain no-repeat;
-      opacity: 0.07;
+      background:
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.12), transparent 55%),
+        linear-gradient(135deg, rgba(251, 113, 133, 0.18), rgba(96, 165, 250, 0.12));
+      opacity: 0.18;
       z-index: 0;
       pointer-events: none;
       filter: grayscale(1) brightness(1.7);
@@ -767,9 +769,31 @@
   </div>
 
   <script>
-    if (sessionStorage.getItem("policeRole") !== "user") {
-      window.location.href = "../index.html";
+    async function ensureRole(expectedRole) {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          throw new Error("Unauthorized");
+        }
+
+        const payload = await response.json();
+        const actualRole = (payload.role || "").toLowerCase();
+        sessionStorage.setItem("policeRole", actualRole);
+
+        if (actualRole !== expectedRole) {
+          window.location.href = payload.redirectPath || "/";
+          return false;
+        }
+
+        return true;
+      } catch {
+        sessionStorage.removeItem("policeRole");
+        window.location.href = "/";
+        return false;
+      }
     }
+
+    ensureRole("user");
 
     mapboxgl.accessToken = "pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q";
 
@@ -1119,9 +1143,14 @@
       }
     });
 
-    document.getElementById("logoutButton").addEventListener("click", () => {
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch {
+      }
+
       sessionStorage.removeItem("policeRole");
-      window.location.href = "../index.html";
+      window.location.href = "/";
     });
 
     function getSelectedTypes() {

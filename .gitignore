@@ -20,3 +20,7 @@ obj/
 *.tlog
 *.zip
 *.userprefs
+
+# Local .NET package/cache folders
+.dotnet/
+.nuget/

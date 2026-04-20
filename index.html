@@ -311,11 +311,11 @@
   </main>
 
   <script>
-    const accounts = {
-      admin: { password: "admin123", target: "./admin/admin.html" },
-      user: { password: "user123", target: "./user/user.html" },
-      police: { password: "police123", target: "./police/police.html" },
-      support: { password: "support123", target: "./support/support.html" }
+    const roleToStorageValue = {
+      Admin: "admin",
+      User: "user",
+      Police: "police",
+      Support: "support"
     };
 
     const form = document.getElementById("loginForm");
@@ -324,24 +324,72 @@
 
     function setStatus(message, type) {
       statusNode.textContent = message;
-      statusNode.className = `status ${type}`;
+      statusNode.className = `status ${type}`.trim();
     }
 
-    form.addEventListener("submit", (event) => {
+    async function readPayload(response) {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        return await response.json();
+      }
+
+      return {};
+    }
+
+    async function redirectIfAuthenticated() {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = await readPayload(response);
+        if (payload.role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
+        }
+        if (payload.redirectPath) {
+          window.location.replace(payload.redirectPath);
+        }
+      } catch {
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
       event.preventDefault();
 
-      const username = form.username.value.trim().toLowerCase();
+      const username = form.username.value.trim();
       const password = form.password.value;
-      const account = accounts[username];
 
-      if (!account || account.password !== password) {
-        setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
+      if (!username || !password) {
+        setStatus("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.", "error");
         return;
       }
 
-      setStatus("Đăng nhập thành công, đang chuyển trang...", "success");
-      sessionStorage.setItem("policeRole", username);
-      window.location.href = account.target;
+      setStatus("Đang xác thực tài khoản...", "");
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (!response.ok) {
+          setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
+          return;
+        }
+
+        const payload = await readPayload(response);
+        if (payload.role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
+        }
+
+        setStatus("Đăng nhập thành công, đang chuyển trang...", "success");
+        window.location.href = payload.redirectPath || "/";
+      } catch {
+        setStatus("Không thể kết nối tới máy chủ xác thực.", "error");
+      }
     });
 
     fillAdminButton.addEventListener("click", () => {
@@ -349,6 +397,8 @@
       form.password.value = "admin123";
       setStatus("", "");
     });
+
+    redirectIfAuthenticated();
   </script>
 </body>
 </html>

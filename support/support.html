@@ -54,12 +54,39 @@
     </div>
   </div>
   <script>
-    if (sessionStorage.getItem("policeRole") !== "support") {
-      window.location.href = "../index.html";
+    async function ensureRole(expectedRole) {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          throw new Error("Unauthorized");
+        }
+
+        const payload = await response.json();
+        const actualRole = (payload.role || "").toLowerCase();
+        sessionStorage.setItem("policeRole", actualRole);
+
+        if (actualRole !== expectedRole) {
+          window.location.href = payload.redirectPath || "/";
+          return false;
+        }
+
+        return true;
+      } catch {
+        sessionStorage.removeItem("policeRole");
+        window.location.href = "/";
+        return false;
+      }
     }
-    document.getElementById("logoutButton").addEventListener("click", () => {
+
+    ensureRole("support");
+    document.getElementById("logoutButton").addEventListener("click", async () => {
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch {
+      }
+
       sessionStorage.removeItem("policeRole");
-      window.location.href = "../index.html";
+      window.location.href = "/";
     });
   </script>
 </body>

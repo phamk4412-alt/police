@@ -1,9 +1,10 @@
 using System.Globalization;
-using System.Text.Json;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
 using PoliceWebServer.Data;
 using PoliceWebServer.Hubs;
 using PoliceWebServer.Models;
@@ -15,12 +16,33 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.PropertyNamingPolicy = null;
 });
 
-builder.Services.AddCors(options =>
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "PoliceSmartHub.Auth";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.LoginPath = "/";
+        options.AccessDeniedPath = "/";
+        options.SlidingExpiration = true;
+        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        options.Events = new CookieAuthenticationEvents
+        {
+            OnRedirectToLogin = context => HandleAuthRedirectAsync(context, StatusCodes.Status401Unauthorized),
+            OnRedirectToAccessDenied = context => HandleAuthRedirectAsync(context, StatusCodes.Status403Forbidden)
+        };
+    });
+
+builder.Services.AddAuthorization(options =>
 {
-    options.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin()
-            .AllowAnyHeader()
-            .AllowAnyMethod());
+    options.AddPolicy(Policies.AdminOnly, policy => policy.RequireRole(AppRoles.Admin));
+    options.AddPolicy(Policies.UserOnly, policy => policy.RequireRole(AppRoles.User));
+    options.AddPolicy(Policies.PoliceOnly, policy => policy.RequireRole(AppRoles.Police));
+    options.AddPolicy(Policies.SupportOnly, policy => policy.RequireRole(AppRoles.Support));
+    options.AddPolicy(Policies.CanSubmitIncident, policy => policy.RequireRole(AppRoles.User));
+    options.AddPolicy(Policies.CanViewIncidents, policy => policy.RequireRole(AppRoles.Admin, AppRoles.Police, AppRoles.Support));
+    options.AddPolicy(Policies.CanUpdateIncidents, policy => policy.RequireRole(AppRoles.Admin, AppRoles.Police, AppRoles.Support));
 });
 
 builder.Services.AddSignalR().AddJsonProtocol(options =>
@@ -36,7 +58,7 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
 
     switch (provider)
     {
-        case "sqlserver":
+        case DatabaseProviders.SqlServer:
             if (string.IsNullOrWhiteSpace(sqlServerConnection))
             {
                 throw new InvalidOperationException("ConnectionStrings:SqlServer chua duoc cau hinh.");
@@ -45,7 +67,7 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
             options.UseSqlServer(sqlServerConnection);
             break;
 
-        case "postgres":
+        case DatabaseProviders.Postgres:
             if (string.IsNullOrWhiteSpace(postgresConnection))
             {
                 throw new InvalidOperationException("ConnectionStrings:Postgres chua duoc cau hinh.");
@@ -54,40 +76,87 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
             options.UseNpgsql(postgresConnection);
             break;
 
+        case DatabaseProviders.InMemory:
+            options.UseInMemoryDatabase("PoliceSmartHub");
+            break;
+
         default:
-            throw new InvalidOperationException("DatabaseProvider phai la 'sqlserver' hoac 'postgres'.");
+            throw new InvalidOperationException("DatabaseProvider phai la 'inmemory', 'sqlserver' hoac 'postgres'.");
     }
 });
 
 var app = builder.Build();
 
-var websiteRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, ".."));
-var indexFile = Path.Combine(websiteRoot, "index.html");
+var repoRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, ".."));
+var staticAssets = new StaticAssetPaths(
+    IndexFile: Path.Combine(repoRoot, "index.html"),
+    AdminFile: Path.Combine(repoRoot, "admin", "admin.html"),
+    UserFile: Path.Combine(repoRoot, "user", "user.html"),
+    PoliceFile: Path.Combine(repoRoot, "police", "police.html"),
+    SupportFile: Path.Combine(repoRoot, "support", "support.html"),
+    BoundaryFile: Path.Combine(repoRoot, "hcm-boundary.geojson"));
 
-if (!File.Exists(indexFile))
-{
-    throw new FileNotFoundException("Khong tim thay index.html cho website.", indexFile);
-}
-
+EnsureStaticAssetsExist(staticAssets);
 await EnsureDatabaseReadyAsync(app.Services);
 
-var websiteFiles = new PhysicalFileProvider(websiteRoot);
+app.UseAuthentication();
+app.UseAuthorization();
 
-app.UseDefaultFiles(new DefaultFilesOptions
+app.MapPost("/api/auth/login", async (LoginRequest request, HttpContext context) =>
 {
-    FileProvider = websiteFiles
+    if (!TryGetDemoUser(request.Username, request.Password, out var user))
+    {
+        return Results.Unauthorized();
+    }
+
+    var claims = new[]
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Username),
+        new Claim(ClaimTypes.Name, user.DisplayName),
+        new Claim(ClaimTypes.Role, user.Role)
+    };
+
+    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    var principal = new ClaimsPrincipal(identity);
+
+    await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+    return Results.Ok(new AuthenticatedUserResponse(
+        user.Username,
+        user.DisplayName,
+        user.Role,
+        GetLandingPathForRole(user.Role)));
 });
 
-app.UseStaticFiles(new StaticFileOptions
+app.MapPost("/api/auth/logout", async (HttpContext context) =>
 {
-    FileProvider = websiteFiles
+    await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+    return Results.Ok(new { message = "Da dang xuat." });
 });
-app.UseCors();
+
+app.MapGet("/api/auth/me", (ClaimsPrincipal user) =>
+{
+    if (user.Identity?.IsAuthenticated != true)
+    {
+        return Results.Unauthorized();
+    }
+
+    var role = user.FindFirstValue(ClaimTypes.Role);
+    if (string.IsNullOrWhiteSpace(role))
+    {
+        return Results.Unauthorized();
+    }
+
+    return Results.Ok(new AuthenticatedUserResponse(
+        user.FindFirstValue(ClaimTypes.NameIdentifier) ?? string.Empty,
+        user.Identity?.Name ?? string.Empty,
+        role,
+        GetLandingPathForRole(role)));
+});
 
 app.MapGet("/api/health", (IConfiguration configuration) => Results.Ok(new
 {
     status = "ok",
-    websiteRoot,
     databaseProvider = ResolveDatabaseProvider(configuration),
     signalRHub = "/hubs/incidents",
     timestamp = DateTimeOffset.UtcNow
@@ -101,7 +170,7 @@ app.MapGet("/api/incidents", async (IncidentDbContext dbContext) =>
         .ToListAsync();
 
     return Results.Ok(incidents);
-});
+}).RequireAuthorization(Policies.CanViewIncidents);
 
 app.MapPost("/api/incidents", async (
     HttpContext context,
@@ -151,7 +220,7 @@ app.MapPost("/api/incidents", async (
         message = "Da gui bao cao thanh cong.",
         incident = payload
     });
-});
+}).RequireAuthorization(Policies.CanSubmitIncident);
 
 app.MapPatch("/api/incidents/{id:guid}/status", async (
     Guid id,
@@ -184,17 +253,100 @@ app.MapPatch("/api/incidents/{id:guid}/status", async (
         message = "Da cap nhat trang thai.",
         incident = payload
     });
-});
+}).RequireAuthorization(Policies.CanUpdateIncidents);
 
-app.MapHub<IncidentHub>("/hubs/incidents");
+MapPage(app, "/", staticAssets.IndexFile);
+MapPage(app, "/index.html", staticAssets.IndexFile);
+MapProtectedPage(app, "/admin", staticAssets.AdminFile, Policies.AdminOnly);
+MapProtectedPage(app, "/admin/admin.html", staticAssets.AdminFile, Policies.AdminOnly);
+MapProtectedPage(app, "/user", staticAssets.UserFile, Policies.UserOnly);
+MapProtectedPage(app, "/user/user.html", staticAssets.UserFile, Policies.UserOnly);
+MapProtectedPage(app, "/police", staticAssets.PoliceFile, Policies.PoliceOnly);
+MapProtectedPage(app, "/police/police.html", staticAssets.PoliceFile, Policies.PoliceOnly);
+MapProtectedPage(app, "/support", staticAssets.SupportFile, Policies.SupportOnly);
+MapProtectedPage(app, "/support/support.html", staticAssets.SupportFile, Policies.SupportOnly);
+
+app.MapGet("/hcm-boundary.geojson", () => Results.File(staticAssets.BoundaryFile, "application/geo+json"));
+app.MapGet("/user/data/hcm-boundary.geojson", () => Results.File(staticAssets.BoundaryFile, "application/geo+json"))
+    .RequireAuthorization(Policies.UserOnly);
+
+app.MapHub<IncidentHub>("/hubs/incidents").RequireAuthorization(Policies.CanViewIncidents);
 
 app.MapFallback(async context =>
 {
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        context.Response.Redirect(GetLandingPathForRole(context.User.FindFirstValue(ClaimTypes.Role)));
+        return;
+    }
+
     context.Response.ContentType = "text/html; charset=utf-8";
-    await context.Response.SendFileAsync(indexFile);
+    await context.Response.SendFileAsync(staticAssets.IndexFile);
 });
 
 app.Run();
+
+static void MapPage(WebApplication app, string route, string filePath)
+{
+    app.MapGet(route, async context =>
+    {
+        if (context.User.Identity?.IsAuthenticated == true)
+        {
+            context.Response.Redirect(GetLandingPathForRole(context.User.FindFirstValue(ClaimTypes.Role)));
+            return;
+        }
+
+        context.Response.ContentType = "text/html; charset=utf-8";
+        await context.Response.SendFileAsync(filePath);
+    });
+}
+
+static void MapProtectedPage(WebApplication app, string route, string filePath, string policy)
+{
+    app.MapGet(route, (HttpContext context) =>
+    {
+        context.Response.ContentType = "text/html; charset=utf-8";
+        return context.Response.SendFileAsync(filePath);
+    }).RequireAuthorization(policy);
+}
+
+static Task HandleAuthRedirectAsync(RedirectContext<CookieAuthenticationOptions> context, int statusCode)
+{
+    if (IsApiOrHubRequest(context.Request))
+    {
+        context.Response.StatusCode = statusCode;
+        return Task.CompletedTask;
+    }
+
+    context.Response.Redirect("/");
+    return Task.CompletedTask;
+}
+
+static bool IsApiOrHubRequest(HttpRequest request)
+{
+    return request.Path.StartsWithSegments("/api") || request.Path.StartsWithSegments("/hubs");
+}
+
+static void EnsureStaticAssetsExist(StaticAssetPaths staticAssets)
+{
+    var requiredFiles = new[]
+    {
+        staticAssets.IndexFile,
+        staticAssets.AdminFile,
+        staticAssets.UserFile,
+        staticAssets.PoliceFile,
+        staticAssets.SupportFile,
+        staticAssets.BoundaryFile
+    };
+
+    foreach (var file in requiredFiles)
+    {
+        if (!File.Exists(file))
+        {
+            throw new FileNotFoundException("Khong tim thay file web can thiet.", file);
+        }
+    }
+}
 
 static async Task EnsureDatabaseReadyAsync(IServiceProvider services)
 {
@@ -216,15 +368,15 @@ static string ResolveDatabaseProvider(IConfiguration configuration)
 
     if (!string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "Postgres")))
     {
-        return "postgres";
+        return DatabaseProviders.Postgres;
     }
 
     if (!string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "SqlServer")))
     {
-        return "sqlserver";
+        return DatabaseProviders.SqlServer;
     }
 
-    return "postgres";
+    return DatabaseProviders.InMemory;
 }
 
 static string? ResolveConnectionString(IConfiguration configuration, string name)
@@ -284,8 +436,46 @@ static string NormalizeStatus(string status)
     };
 }
 
+static bool TryGetDemoUser(string? username, string? password, out DemoUser user)
+{
+    user = default;
+    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+    {
+        return false;
+    }
+
+    var normalizedUsername = username.Trim().ToLowerInvariant();
+    if (!DemoUsers.All.TryGetValue(normalizedUsername, out var candidate) ||
+        !string.Equals(candidate.Password, password, StringComparison.Ordinal))
+    {
+        return false;
+    }
+
+    user = candidate;
+    return true;
+}
+
+static string GetLandingPathForRole(string? role)
+{
+    return role switch
+    {
+        AppRoles.Admin => "/admin/admin.html",
+        AppRoles.User => "/user/user.html",
+        AppRoles.Police => "/police/police.html",
+        AppRoles.Support => "/support/support.html",
+        _ => "/"
+    };
+}
+
 internal sealed record CreateIncidentRequest(string Title, string Location, string? Detail, string? Level);
 internal sealed record UpdateIncidentStatusRequest(string Status);
+internal sealed record LoginRequest(string Username, string Password);
+
+internal sealed record AuthenticatedUserResponse(
+    string Username,
+    string DisplayName,
+    string Role,
+    string RedirectPath);
 
 internal sealed record IncidentResponse(
     Guid Id,
@@ -314,4 +504,55 @@ internal static class IncidentMappingExtensions
         incident.Source,
         incident.CreatedAt,
         incident.UpdatedAt);
+}
+
+internal readonly record struct StaticAssetPaths(
+    string IndexFile,
+    string AdminFile,
+    string UserFile,
+    string PoliceFile,
+    string SupportFile,
+    string BoundaryFile);
+
+internal readonly record struct DemoUser(
+    string Username,
+    string Password,
+    string DisplayName,
+    string Role);
+
+internal static class DemoUsers
+{
+    public static readonly IReadOnlyDictionary<string, DemoUser> All = new Dictionary<string, DemoUser>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["admin"] = new("admin", "admin123", "Quan tri vien", AppRoles.Admin),
+        ["user"] = new("user", "user123", "Nguoi dung", AppRoles.User),
+        ["police"] = new("police", "police123", "Canh sat", AppRoles.Police),
+        ["support"] = new("support", "support123", "Nhan vien ho tro", AppRoles.Support)
+    };
+}
+
+internal static class AppRoles
+{
+    public const string Admin = "Admin";
+    public const string User = "User";
+    public const string Police = "Police";
+    public const string Support = "Support";
+}
+
+internal static class Policies
+{
+    public const string AdminOnly = nameof(AdminOnly);
+    public const string UserOnly = nameof(UserOnly);
+    public const string PoliceOnly = nameof(PoliceOnly);
+    public const string SupportOnly = nameof(SupportOnly);
+    public const string CanSubmitIncident = nameof(CanSubmitIncident);
+    public const string CanViewIncidents = nameof(CanViewIncidents);
+    public const string CanUpdateIncidents = nameof(CanUpdateIncidents);
+}
+
+internal static class DatabaseProviders
+{
+    public const string InMemory = "inmemory";
+    public const string SqlServer = "sqlserver";
+    public const string Postgres = "postgres";
 }
