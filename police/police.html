@@ -774,6 +774,7 @@
     const checkoutButton = document.getElementById("checkoutButton");
     const callStationButton = document.getElementById("callStationButton");
     const logoutButton = document.getElementById("logoutButton");
+    let refreshTimer;
 
     function initMap() {
       if (typeof mapboxgl === "undefined") {
@@ -790,6 +791,62 @@
       });
 
       map.addControl(new mapboxgl.NavigationControl(), "top-left");
+      const liveReportMarkers = [];
+
+      function clearLiveReportMarkers() {
+        liveReportMarkers.forEach((marker) => marker.remove());
+        liveReportMarkers.length = 0;
+      }
+
+      function renderLiveReports(reports) {
+        clearLiveReportMarkers();
+
+        reports.forEach((report) => {
+          const markerNode = document.createElement("div");
+          markerNode.className = `incident-marker ${report.Level}`;
+          markerNode.setAttribute("role", "button");
+          markerNode.setAttribute("tabindex", "0");
+
+          const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
+            `<div class="map-popup">
+              <strong>${report.Title}</strong>
+              <p>${report.Detail}</p>
+              <div class="map-popup-footer">
+                <span class="map-popup-time">Thá»i gian: ${report.TimeLabel || "--:--"}</span>
+                <span class="map-popup-status">${report.Status || "Mới tiếp nhận"}</span>
+              </div>
+            </div>`
+          );
+
+          const marker = new mapboxgl.Marker(markerNode)
+            .setLngLat([report.Longitude, report.Latitude])
+            .setPopup(popup)
+            .addTo(map);
+
+          markerNode.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              popup.addTo(map);
+            }
+          });
+
+          liveReportMarkers.push(marker);
+        });
+      }
+
+      async function refreshLiveReports() {
+        try {
+          const response = await fetch("/api/incidents");
+          if (!response.ok) {
+            return;
+          }
+
+          const reports = await response.json();
+          renderLiveReports(reports);
+        } catch (error) {
+          console.error("Khong tai duoc du lieu vu viec", error);
+        }
+      }
 
       const incidents = [
         {
@@ -899,6 +956,9 @@
             }
           });
         });
+
+        refreshLiveReports();
+        refreshTimer = window.setInterval(refreshLiveReports, 5000);
       });
     }
 
@@ -926,6 +986,9 @@
     });
 
     logoutButton.addEventListener("click", () => {
+      if (refreshTimer) {
+        window.clearInterval(refreshTimer);
+      }
       sessionStorage.removeItem("policeRole");
       window.location.href = "../index.html";
     });

@@ -143,6 +143,13 @@
       background: rgba(255, 255, 255, 0.08);
     }
 
+    .report-status {
+      margin-top: 14px;
+      min-height: 24px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
     @media (max-width: 1100px) {
       .layout { grid-template-columns: 1fr; }
     }
@@ -202,6 +209,8 @@
           <button class="btn logout" id="callButton">Gọi 113</button>
           <button class="btn primary" id="reportButton">Gửi báo cáo</button>
         </div>
+
+        <p class="report-status" id="reportStatus">Sáºµn sÃ ng gá»­i bÃ¡o cÃ¡o tá»›i trung tÃ¢m Ä‘iá»u hÃ nh.</p>
 
         <div class="timeline" id="timeline">
           <div class="timeline-item">
@@ -263,6 +272,13 @@
     const incidentLocation = document.getElementById("incidentLocation");
     const incidentDesc = document.getElementById("incidentDesc");
     const timeline = document.getElementById("timeline");
+    const reportStatus = document.getElementById("reportStatus");
+    let reportButton = document.getElementById("reportButton");
+
+    function setReportStatus(message, isError) {
+      reportStatus.textContent = message;
+      reportStatus.style.color = isError ? "#fecaca" : "#bbf7d0";
+    }
 
     function containsAny(text, keywords) {
       return keywords.some(keyword => text.includes(keyword));
@@ -398,6 +414,45 @@
 
     document.getElementById("reportButton").addEventListener("click", () => {
       alert(`Đã ghi nhận vụ việc '${incidentType.value}' tại ${incidentLocation.value}.`);
+    });
+
+    const cleanReportButton = reportButton.cloneNode(true);
+    reportButton.replaceWith(cleanReportButton);
+    reportButton = cleanReportButton;
+
+    reportButton.addEventListener("click", async () => {
+      reportButton.disabled = true;
+      reportButton.textContent = "Äang gá»­i...";
+
+      const aiResult = analyzeIncident(aiPrompt.value || incidentDesc.value);
+
+      try {
+        const response = await fetch("/api/incidents", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title: incidentType.value.trim(),
+            location: incidentLocation.value.trim(),
+            detail: incidentDesc.value.trim(),
+            level: aiResult.emergency ? "high" : aiResult.priority === "Cao" ? "medium" : "low"
+          })
+        });
+
+        const payload = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload.message || "KhÃ´ng thá»ƒ gá»­i bÃ¡o cÃ¡o.");
+        }
+
+        setReportStatus("ÄÃ£ gá»­i bÃ¡o cÃ¡o. MÃ n hÃ¬nh cáº£nh sÃ¡t sáº½ hiá»‡n chám má»›i trong vÃ i giÃ¢y.", false);
+      } catch (error) {
+        setReportStatus(error.message || "Gá»­i bÃ¡o cÃ¡o tháº¥t báº¡i.", true);
+      } finally {
+        reportButton.disabled = false;
+        reportButton.textContent = "Gá»­i bÃ¡o cÃ¡o";
+      }
     });
 
     mapboxgl.accessToken = "pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q";
