@@ -845,9 +845,14 @@
     const apiBaseInput = document.getElementById("apiBaseInput");
     const saveApiBaseButton = document.getElementById("saveApiBaseButton");
     const API_BASE = window.POLICE_API_BASE || localStorage.getItem("policeApiBase") || "";
+    const API_PLACEHOLDER_TOKEN = "IP-MAY-CHU";
 
     function apiUrl(path) {
       return `${API_BASE}${path}`;
+    }
+
+    function hasUsableApiBase() {
+      return Boolean(API_BASE) && !API_BASE.toUpperCase().includes(API_PLACEHOLDER_TOKEN);
     }
 
     async function readApiPayload(response) {
@@ -870,10 +875,12 @@
       const value = apiBaseInput.value.trim().replace(/\/$/, "");
       if (value) {
         localStorage.setItem("policeApiBase", value);
-        reportStatus.textContent = `Đã lưu địa chỉ API: ${value}`;
+        reportStatus.textContent = value.toUpperCase().includes(API_PLACEHOLDER_TOKEN)
+          ? "Đã lưu mẫu địa chỉ API. Hãy thay IP-MAY-CHU bằng IP hoặc domain thật của máy chạy server để 2 thiết bị liên lạc với nhau."
+          : `Đã lưu địa chỉ API: ${value}. Hãy nhập cùng địa chỉ này trên máy cảnh sát.`;
       } else {
         localStorage.removeItem("policeApiBase");
-        reportStatus.textContent = "Đã xóa địa chỉ API đã lưu. Trang sẽ dùng cùng domain hiện tại.";
+        reportStatus.textContent = "Đã xóa địa chỉ API đã lưu. Nếu bạn chỉ mở web tĩnh thì báo cáo sẽ không gửi sang thiết bị khác.";
       }
     });
 
@@ -1121,6 +1128,10 @@
       reportStatus.textContent = "Đang gửi báo cáo lên trung tâm điều hành...";
 
       try {
+        if (!hasUsableApiBase()) {
+          throw new Error("Bạn cần nhập địa chỉ API thật của máy chủ cảnh sát, ví dụ http://192.168.1.10:5055.");
+        }
+
         const response = await fetch(apiUrl("/api/incidents"), {
           method: "POST",
           headers: {
@@ -1142,7 +1153,7 @@
 
         reportStatus.textContent = `Đã gửi báo cáo "${type}" thành công. Phía cảnh sát sẽ nhận thông báo sau vài giây.`;
       } catch (error) {
-        reportStatus.textContent = `${error.message || "Gửi báo cáo thất bại."}${API_BASE ? "" : " Hãy cấu hình địa chỉ API nếu bạn đang chạy web tĩnh."}`;
+        reportStatus.textContent = error.message || "Gửi báo cáo thất bại. Hãy kiểm tra địa chỉ API trên cả hai thiết bị.";
       } finally {
         reportButton.disabled = false;
       }

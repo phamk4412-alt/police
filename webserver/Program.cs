@@ -16,6 +16,16 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.PropertyNamingPolicy = null;
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(CorsPolicies.OpenRealtime, policy =>
+        policy
+            .SetIsOriginAllowed(_ => true)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials());
+});
+
 builder.Services
     .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
@@ -86,6 +96,7 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
 });
 
 var app = builder.Build();
+var demoOpenAccess = builder.Configuration.GetValue("DemoOpenAccess", true);
 
 var repoRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, ".."));
 var staticAssets = new StaticAssetPaths(
@@ -99,6 +110,7 @@ var staticAssets = new StaticAssetPaths(
 EnsureStaticAssetsExist(staticAssets);
 await EnsureDatabaseReadyAsync(app.Services);
 
+app.UseCors(CorsPolicies.OpenRealtime);
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -170,7 +182,7 @@ app.MapGet("/api/incidents", async (IncidentDbContext dbContext) =>
         .ToListAsync();
 
     return Results.Ok(incidents);
-}).RequireAuthorization(Policies.CanViewIncidents);
+}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanViewIncidents);
 
 app.MapPost("/api/incidents", async (
     HttpContext context,
@@ -220,7 +232,7 @@ app.MapPost("/api/incidents", async (
         message = "Da gui bao cao thanh cong.",
         incident = payload
     });
-}).RequireAuthorization(Policies.CanSubmitIncident);
+}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanSubmitIncident);
 
 app.MapPatch("/api/incidents/{id:guid}/status", async (
     Guid id,
@@ -253,7 +265,7 @@ app.MapPatch("/api/incidents/{id:guid}/status", async (
         message = "Da cap nhat trang thai.",
         incident = payload
     });
-}).RequireAuthorization(Policies.CanUpdateIncidents);
+}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanUpdateIncidents);
 
 MapPage(app, "/", staticAssets.IndexFile);
 MapPage(app, "/index.html", staticAssets.IndexFile);
@@ -270,7 +282,7 @@ app.MapGet("/hcm-boundary.geojson", () => Results.File(staticAssets.BoundaryFile
 app.MapGet("/user/data/hcm-boundary.geojson", () => Results.File(staticAssets.BoundaryFile, "application/geo+json"))
     .RequireAuthorization(Policies.UserOnly);
 
-app.MapHub<IncidentHub>("/hubs/incidents").RequireAuthorization(Policies.CanViewIncidents);
+app.MapHub<IncidentHub>("/hubs/incidents").ApplyIncidentPolicy(demoOpenAccess, Policies.CanViewIncidents);
 
 app.MapFallback(async context =>
 {
@@ -506,6 +518,20 @@ internal static class IncidentMappingExtensions
         incident.UpdatedAt);
 }
 
+internal static class EndpointConventionBuilderExtensions
+{
+    public static TBuilder ApplyIncidentPolicy<TBuilder>(this TBuilder builder, bool demoOpenAccess, string policy)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        if (!demoOpenAccess)
+        {
+            builder.RequireAuthorization(policy);
+        }
+
+        return builder;
+    }
+}
+
 internal readonly record struct StaticAssetPaths(
     string IndexFile,
     string AdminFile,
@@ -555,4 +581,9 @@ internal static class DatabaseProviders
     public const string InMemory = "inmemory";
     public const string SqlServer = "sqlserver";
     public const string Postgres = "postgres";
+}
+
+internal static class CorsPolicies
+{
+    public const string OpenRealtime = nameof(OpenRealtime);
 }

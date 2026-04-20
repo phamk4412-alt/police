@@ -943,6 +943,7 @@
     const apiBaseInput = document.getElementById("apiBaseInput");
     const saveApiBaseButton = document.getElementById("saveApiBaseButton");
     let apiBase = window.POLICE_API_BASE || localStorage.getItem("policeApiBase") || "";
+    const API_PLACEHOLDER_TOKEN = "IP-MAY-CHU";
     let refreshTimer;
     let liveReportMarkers = [];
     let liveReportEntries = new Map();
@@ -955,6 +956,10 @@
 
     function apiUrl(path) {
       return `${apiBase}${path}`;
+    }
+
+    function hasUsableApiBase() {
+      return Boolean(apiBase) && !apiBase.toUpperCase().includes(API_PLACEHOLDER_TOKEN);
     }
 
     async function readApiPayload(response) {
@@ -978,11 +983,15 @@
       if (value) {
         localStorage.setItem("policeApiBase", value);
         apiBase = value;
-        showLiveAlert(`Đã lưu địa chỉ API: ${value}`);
+        showLiveAlert(
+          value.toUpperCase().includes(API_PLACEHOLDER_TOKEN)
+            ? "Hãy thay IP-MAY-CHU bằng IP hoặc domain thật của máy chạy server."
+            : `Đã lưu địa chỉ API: ${value}`
+        );
       } else {
         localStorage.removeItem("policeApiBase");
         apiBase = "";
-        showLiveAlert("Đã xóa địa chỉ API đã lưu.");
+        showLiveAlert("Đã xóa địa chỉ API đã lưu. Trang sẽ không nhận báo cáo từ thiết bị khác.");
       }
       window.setTimeout(() => window.location.reload(), 500);
     });
@@ -1231,9 +1240,18 @@
 
       async function refreshLiveReports() {
         try {
+          if (!hasUsableApiBase()) {
+            if (!hasInitializedReports) {
+              hasInitializedReports = true;
+              showLiveAlert("Hãy nhập cùng địa chỉ API thật trên cả máy người dùng và máy cảnh sát để nhận báo cáo realtime.");
+            }
+            return;
+          }
+
           const response = await fetch(apiUrl("/api/incidents"));
           if (!response.ok) {
-            return;
+            const payload = await readApiPayload(response);
+            throw new Error(payload.message || "Không tải được dữ liệu vụ việc từ máy chủ.");
           }
 
           const reports = await readApiPayload(response);
@@ -1272,14 +1290,20 @@
         }
       }
 
+      window.forceRefreshIncidents = refreshLiveReports;
+
       async function connectIncidentHub() {
+        if (!hasUsableApiBase()) {
+          return;
+        }
+
         if (typeof signalR === "undefined") {
           showLiveAlert("SignalR client chua duoc tai.");
           return;
         }
 
         incidentHubConnection = new signalR.HubConnectionBuilder()
-          .withUrl(apiUrl("/hubs/incidents"), { withCredentials: true })
+          .withUrl(apiUrl("/hubs/incidents"), { withCredentials: false })
           .withAutomaticReconnect()
           .build();
 
@@ -1309,7 +1333,7 @@
         try {
           await incidentHubConnection.start();
         } catch (error) {
-          showLiveAlert("Khong the ket noi SignalR.");
+          showLiveAlert("Không thể kết nối realtime. Hãy kiểm tra địa chỉ API và server.");
           console.error("Khong ket noi duoc SignalR", error);
         }
       }
@@ -1477,6 +1501,11 @@
 
     updateClock();
     initMap();
+    refreshTimer = window.setInterval(() => {
+      if (typeof window.forceRefreshIncidents === "function") {
+        window.forceRefreshIncidents();
+      }
+    }, 4000);
     setInterval(updateClock, 1000);
   </script>
 </body>
