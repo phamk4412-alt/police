@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cảnh sát - Trung tâm điều hành</title>
+  <script src="../app-config.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet" />
   <style>
     :root {
@@ -818,11 +819,8 @@
             <a class="map-link secondary" href="../index.html">Về đăng nhập</a>
           </div>
 
-          <div style="margin-top: 14px;">
-            <input id="apiBaseInput" type="text" placeholder="Địa chỉ API, ví dụ http://192.168.1.10:5055" style="width:100%;min-height:46px;border-radius:14px;border:1px solid rgba(110, 135, 190, 0.16);background:#24304c;color:#f5f8ff;padding:0 14px;font:inherit;" />
-            <div class="map-actions">
-              <button class="btn btn-primary" id="saveApiBaseButton" style="min-height:44px;">Lưu địa chỉ API</button>
-            </div>
+          <div style="margin-top: 14px;color:#a8bddf;line-height:1.6;">
+            Kết nối dữ liệu được cấu hình tự động. Khi người dùng gửi báo cáo từ thiết bị khác, bản đồ này sẽ tự nhận vị trí và hiện thông báo.
           </div>
         </div>
 
@@ -940,10 +938,7 @@
     const liveAlert = document.getElementById("liveAlert");
     const liveAlertText = document.getElementById("liveAlertText");
     const incidentFeed = document.getElementById("incidentFeed");
-    const apiBaseInput = document.getElementById("apiBaseInput");
-    const saveApiBaseButton = document.getElementById("saveApiBaseButton");
-    let apiBase = window.POLICE_API_BASE || localStorage.getItem("policeApiBase") || "";
-    const API_PLACEHOLDER_TOKEN = "IP-MAY-CHU";
+    let apiBase = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
     let refreshTimer;
     let liveReportMarkers = [];
     let liveReportEntries = new Map();
@@ -959,7 +954,7 @@
     }
 
     function hasUsableApiBase() {
-      return Boolean(apiBase) && !apiBase.toUpperCase().includes(API_PLACEHOLDER_TOKEN);
+      return Boolean(apiBase);
     }
 
     async function readApiPayload(response) {
@@ -976,25 +971,6 @@
 
       return [];
     }
-
-    apiBaseInput.value = apiBase;
-    saveApiBaseButton.addEventListener("click", () => {
-      const value = apiBaseInput.value.trim().replace(/\/$/, "");
-      if (value) {
-        localStorage.setItem("policeApiBase", value);
-        apiBase = value;
-        showLiveAlert(
-          value.toUpperCase().includes(API_PLACEHOLDER_TOKEN)
-            ? "Hãy thay IP-MAY-CHU bằng IP hoặc domain thật của máy chạy server."
-            : `Đã lưu địa chỉ API: ${value}`
-        );
-      } else {
-        localStorage.removeItem("policeApiBase");
-        apiBase = "";
-        showLiveAlert("Đã xóa địa chỉ API đã lưu. Trang sẽ không nhận báo cáo từ thiết bị khác.");
-      }
-      window.setTimeout(() => window.location.reload(), 500);
-    });
 
     function showLiveAlert(message) {
       liveAlertText.textContent = message;
@@ -1243,7 +1219,7 @@
           if (!hasUsableApiBase()) {
             if (!hasInitializedReports) {
               hasInitializedReports = true;
-              showLiveAlert("Hãy nhập cùng địa chỉ API thật trên cả máy người dùng và máy cảnh sát để nhận báo cáo realtime.");
+              showLiveAlert("Không tìm thấy máy chủ dữ liệu. Hãy cấu hình configuredPublicApiBase trong app-config.js nếu frontend và backend khác domain.");
             }
             return;
           }
@@ -1505,7 +1481,7 @@
       if (typeof window.forceRefreshIncidents === "function") {
         window.forceRefreshIncidents();
       }
-    }, 4000);
+    }, window.POLICE_REALTIME_POLL_INTERVAL_MS || 4000);
     setInterval(updateClock, 1000);
   </script>
 </body>
