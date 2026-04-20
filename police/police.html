@@ -905,6 +905,7 @@
     const liveAlert = document.getElementById("liveAlert");
     const liveAlertText = document.getElementById("liveAlertText");
     const incidentFeed = document.getElementById("incidentFeed");
+    const API_BASE = window.POLICE_API_BASE || localStorage.getItem("policeApiBase") || "";
     let refreshTimer;
     let liveReportMarkers = [];
     let liveReportEntries = new Map();
@@ -912,6 +913,25 @@
     let latestToastTimer;
     let audioContext;
     let hasInitializedReports = false;
+
+    function apiUrl(path) {
+      return `${API_BASE}${path}`;
+    }
+
+    async function readApiPayload(response) {
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json")) {
+        return await response.json();
+      }
+
+      const text = await response.text();
+      if (text.trim().startsWith("<")) {
+        throw new Error("API chưa được nối đúng. Trang cảnh sát đang nhận HTML thay vì JSON.");
+      }
+
+      return [];
+    }
 
     function showLiveAlert(message) {
       liveAlertText.textContent = message;
@@ -986,7 +1006,7 @@
 
     window.updateIncidentStatus = async (incidentId, status) => {
       try {
-        const response = await fetch(`/api/incidents/${incidentId}/status`, {
+        const response = await fetch(apiUrl(`/api/incidents/${incidentId}/status`), {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json"
@@ -1128,12 +1148,12 @@
 
       async function refreshLiveReports() {
         try {
-          const response = await fetch("/api/incidents");
+          const response = await fetch(apiUrl("/api/incidents"));
           if (!response.ok) {
             return;
           }
 
-          const reports = await response.json();
+          const reports = await readApiPayload(response);
           const newReports = reports.filter((report) => !seenReportIds.has(report.Id));
 
           reports.forEach((report) => seenReportIds.add(report.Id));
@@ -1162,6 +1182,7 @@
             }
           }
         } catch (error) {
+          showLiveAlert(error.message || "Không tải được dữ liệu vụ việc.");
           console.error("Khong tai duoc vu viec moi", error);
         }
       }

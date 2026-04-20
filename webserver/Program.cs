@@ -10,6 +10,13 @@ builder.Services.Configure<JsonOptions>(options =>
 {
     options.SerializerOptions.PropertyNamingPolicy = null;
 });
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+        policy.AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod());
+});
 
 var app = builder.Build();
 
@@ -47,6 +54,7 @@ app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = websiteFiles
 });
+app.UseCors();
 
 app.MapGet("/api/health", () => Results.Ok(new
 {

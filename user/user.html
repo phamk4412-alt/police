@@ -807,6 +807,26 @@
     const reportStatus = document.getElementById("reportStatus");
     const incidentType = document.getElementById("incidentType");
     const incidentDesc = document.getElementById("incidentDesc");
+    const API_BASE = window.POLICE_API_BASE || localStorage.getItem("policeApiBase") || "";
+
+    function apiUrl(path) {
+      return `${API_BASE}${path}`;
+    }
+
+    async function readApiPayload(response) {
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json")) {
+        return await response.json();
+      }
+
+      const text = await response.text();
+      if (text.trim().startsWith("<")) {
+        throw new Error("API chưa được nối đúng. Trang hiện đang nhận HTML thay vì JSON.");
+      }
+
+      return { message: text };
+    }
 
     const statisticsPanel = document.getElementById("statisticsPanel");
     const statisticsList = document.getElementById("statisticsList");
@@ -1052,7 +1072,7 @@
       reportStatus.textContent = "Đang gửi báo cáo lên trung tâm điều hành...";
 
       try {
-        const response = await fetch("/api/incidents", {
+        const response = await fetch(apiUrl("/api/incidents"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -1065,7 +1085,7 @@
           })
         });
 
-        const payload = await response.json();
+        const payload = await readApiPayload(response);
 
         if (!response.ok) {
           throw new Error(payload.message || "Không thể gửi báo cáo.");
@@ -1073,7 +1093,7 @@
 
         reportStatus.textContent = `Đã gửi báo cáo "${type}" thành công. Phía cảnh sát sẽ nhận thông báo sau vài giây.`;
       } catch (error) {
-        reportStatus.textContent = error.message || "Gửi báo cáo thất bại.";
+        reportStatus.textContent = `${error.message || "Gửi báo cáo thất bại."}${API_BASE ? "" : " Hãy cấu hình địa chỉ API nếu bạn đang chạy web tĩnh."}`;
       } finally {
         reportButton.disabled = false;
       }
