@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cảnh sát - Trung tâm điều hành</title>
+  <script src="../app-config.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071127;
+      --bg-soft: #0d1830;
+      --panel: #202d47;
+      --panel-2: #263654;
+      --line: rgba(130, 160, 220, 0.18);
+      --text: #f5f8ff;
+      --muted: #93a7c8;
+      --blue: #4c98ff;
+      --yellow: #facc15;
+      --green: #22e27a;
+      --purple: #b56cff;
+      --danger: #ff202a;
+      --ok: #09b63e;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(76, 152, 255, 0.12), transparent 26%),
+        linear-gradient(180deg, #030919 0%, var(--bg) 100%);
+      color: var(--text);
+    }
+
+    .layout {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+    }
+
+    .sidebar {
+      background: rgba(8, 14, 28, 0.96);
+      border-right: 1px solid rgba(110, 135, 190, 0.12);
+      padding: 28px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(110, 135, 190, 0.12);
+    }
+
+    .brand-badge {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #1f66ff, #2a8cff);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+      font-size: 1.4rem;
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 1.15rem;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .brand-subtitle {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .nav-card {
+      padding: 18px;
+      border-radius: 22px;
+      background: rgba(16, 24, 44, 0.92);
+      border: 1px solid rgba(110, 135, 190, 0.14);
+    }
+
+    .nav-card h2 {
+      margin: 0 0 10px;
+      font-size: 1.02rem;
+    }
+
+    .nav-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.7;
+      font-size: 0.95rem;
+    }
+
+    .nav-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .nav-item {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(27, 39, 67, 0.96);
+      border: 1px solid rgba(110, 135, 190, 0.14);
+      font-weight: 700;
+      color: #dce7ff;
+    }
+
+    .main {
+      padding: 22px;
+    }
+
+    .header {
+      background: #121d39;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 18px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .header-logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #1f66ff, #2a8cff);
+      font-size: 1.2rem;
+    }
+
+    .header-title {
+      margin: 0;
+      font-size: 1.12rem;
+      font-weight: 800;
+    }
+
+    .header-copy {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    .icon-dot {
+      position: relative;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .icon-dot::after {
+      content: "";
+      position: absolute;
+      top: -3px;
+      right: -2px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ff4343;
+    }
+
+    .officer {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding-left: 18px;
+      border-left: 1px solid rgba(110, 135, 190, 0.16);
+    }
+
+    .officer-meta {
+      text-align: right;
+    }
+
+    .officer-meta strong {
+      display: block;
+      font-size: 1rem;
+    }
+
+    .officer-meta span {
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .officer-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #1f66ff, #2a8cff);
+      font-size: 1.25rem;
+      font-weight: 800;
+    }
+
+    .stats {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .stat-card,
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-card {
+      padding: 18px 18px 16px;
+    }
+
+    .stat-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 12px;
+      font-size: 1.05rem;
+      font-weight: 700;
+    }
+
+    .stat-card strong {
+      display: block;
+      font-size: 1.18rem;
+      margin-bottom: 6px;
+    }
+
+    .stat-card span {
+      color: var(--muted);
+    }
+
+    .i-blue { color: var(--blue); background: rgba(76, 152, 255, 0.14); }
+    .i-yellow { color: var(--yellow); background: rgba(250, 204, 21, 0.14); }
+    .i-green { color: var(--green); background: rgba(34, 226, 122, 0.14); }
+    .i-purple { color: var(--purple); background: rgba(181, 108, 255, 0.14); }
+
+    .dashboard {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(340px, 0.95fr);
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 20px;
+    }
+
+    .panel h2 {
+      margin: 0;
+      font-size: 1.08rem;
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .panel-note {
+      color: var(--muted);
+      font-size: 0.93rem;
+    }
+
+    .map-wrap {
+      position: relative;
+      overflow: hidden;
+      border-radius: 22px;
+      border: 1px solid rgba(110, 135, 190, 0.12);
+      background: #d6d6d6;
+      min-height: 470px;
+    }
+
+    .map-frame {
+      width: 100%;
+      height: 470px;
+      border: 0;
+      display: block;
+      background: #d6d6d6;
+    }
+
+    #incidentMap {
+      width: 100%;
+      height: 470px;
+    }
+
+    .mapboxgl-canvas {
+      outline: none;
+    }
+
+    .mapboxgl-ctrl-bottom-left,
+    .mapboxgl-ctrl-bottom-right {
+      filter: saturate(0.9);
+    }
+
+    .incident-marker {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.92);
+      box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.14);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .incident-marker.high {
+      background: #ff3747;
+      animation: urgentPulse 1.2s ease-in-out infinite;
+    }
+
+    .incident-marker.medium {
+      background: #ff9f0a;
+      box-shadow: 0 0 0 8px rgba(255, 159, 10, 0.12);
+    }
+
+    .incident-marker.low {
+      background: #10c75a;
+      box-shadow: 0 0 0 8px rgba(16, 199, 90, 0.12);
+    }
+
+    .incident-marker:hover {
+      transform: scale(1.08);
+    }
+
+    .incident-marker.live-report {
+      width: 22px;
+      height: 22px;
+      border-width: 4px;
+      background: #ff3747 !important;
+      animation: urgentPulse 1.2s ease-in-out infinite;
+      box-shadow: 0 0 0 12px rgba(255, 55, 71, 0.16);
+    }
+
+    .mapboxgl-popup {
+      max-width: 340px !important;
+    }
+
+    .mapboxgl-popup-content {
+      padding: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.28);
+    }
+
+    .mapboxgl-popup-close-button {
+      top: 10px;
+      right: 12px;
+      color: #7b8598;
+      font-size: 1.45rem;
+      line-height: 1;
+    }
+
+    .map-popup {
+      padding: 18px 20px 16px;
+      color: #51607a;
+      line-height: 1.6;
+      font-size: 0.96rem;
+    }
+
+    .map-popup strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #f59e0b;
+      font-size: 1.9rem;
+      line-height: 1.1;
+    }
+
+    .map-popup p {
+      margin: 0 0 14px;
+      color: #66758f;
+    }
+
+    .map-popup-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.95rem;
+    }
+
+    .map-popup-time {
+      color: #94a3b8;
+    }
+
+    .map-popup-status {
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: #d9fbe6;
+      color: #199a5a;
+      font-weight: 700;
+    }
+
+    .map-popup-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .popup-btn {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font: inherit;
+      font-size: 0.8rem;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+    }
+
+    .popup-btn.receive {
+      background: #2563eb;
+    }
+
+    .popup-btn.resolve {
+      background: #16a34a;
+    }
+
+    .incident-feed {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .incident-feed-item {
+      width: 100%;
+      text-align: left;
+      border: 1px solid rgba(110, 135, 190, 0.16);
+      background: rgba(53, 71, 102, 0.72);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 12px 14px;
+      cursor: pointer;
+    }
+
+    .incident-feed-item:hover {
+      border-color: rgba(255, 55, 71, 0.36);
+      background: rgba(66, 84, 118, 0.92);
+    }
+
+    .incident-feed-item strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+    }
+
+    .incident-feed-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #c9d7f1;
+      font-size: 0.84rem;
+    }
+
+    .incident-feed-empty {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.92rem;
+    }
+
+    @keyframes urgentPulse {
+      0% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(255, 55, 71, 0.45);
+      }
+      50% {
+        transform: scale(1.35);
+        box-shadow: 0 0 0 14px rgba(255, 55, 71, 0.08);
+      }
+      100% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(255, 55, 71, 0.45);
+      }
+    }
+
+    .map-watermark {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: rgba(52, 73, 114, 0.12);
+      text-align: center;
+      font-size: clamp(2rem, 5vw, 4rem);
+    }
+
+    .map-watermark,
+    .map-badge,
+    .legend {
+      display: none !important;
+    }
+
+    .side {
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .attendance-time {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: var(--blue);
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .btn {
+      min-height: 60px;
+      border: 0;
+      border-radius: 16px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      color: white;
+      transition: transform 0.2s ease, filter 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.05);
+    }
+
+    .btn-checkin { background: var(--ok); }
+    .btn-checkout { background: var(--danger); }
+    .btn-primary { background: linear-gradient(135deg, #1f66ff, #2a8cff); }
+    .btn-logout { background: #455a84; }
+
+    .mini-stats {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .mini-card {
+      background: #354766;
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .mini-card span {
+      display: block;
+      color: #a8bddf;
+      margin-bottom: 8px;
+      font-size: 0.94rem;
+    }
+
+    .mini-card strong {
+      font-size: 2rem;
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .contact-card {
+      padding: 18px;
+      border-radius: 16px;
+      background: rgba(105, 49, 71, 0.56);
+      color: #ff7680;
+      text-align: center;
+    }
+
+    .contact-card strong {
+      display: block;
+      font-size: 2.2rem;
+      margin-bottom: 6px;
+    }
+
+    .station {
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(110, 135, 190, 0.14);
+    }
+
+    .station span {
+      color: var(--muted);
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .station strong {
+      display: block;
+      line-height: 1.7;
+      font-size: 1rem;
+    }
+
+    .map-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      flex-wrap: wrap;
+    }
+
+    .map-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 0 16px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: white;
+      font-weight: 700;
+      background: #314a7c;
+    }
+
+    .map-link.secondary {
+      background: #24304c;
+      color: #d8e4ff;
+    }
+
+    .live-alert {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      z-index: 30;
+      min-width: 280px;
+      max-width: 360px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 59, 71, 0.96);
+      color: white;
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+      opacity: 0;
+      transform: translateY(-12px);
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+    }
+
+    .live-alert.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .live-alert strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .live-alert span {
+      display: block;
+      font-size: 0.92rem;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    @media (max-width: 1280px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        display: none;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .stats,
+      .dashboard,
+      .buttons,
+      .contact-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        padding: 18px 20px;
+      }
+
+      .officer {
+        border-left: 0;
+        padding-left: 0;
+      }
+
+      .header-right {
+        width: 100%;
+        justify-content: space-between;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-badge">🛡</div>
+        <div>
+          <p class="brand-title">Hệ thống Quản lý Cảnh sát</p>
+          <p class="brand-subtitle">Bảng điều khiển chuyên nghiệp</p>
+        </div>
+      </div>
+
+      <div class="nav-card">
+        <h2>Nhiệm vụ hiện tại</h2>
+        <p>Ưu tiên giám sát khu vực trọng điểm, phản ứng nhanh với vụ việc mức độ cao và cập nhật trạng thái ca trực theo thời gian thực.</p>
+      </div>
+
+      <div class="nav-list">
+        <div class="nav-item">Bản đồ vụ việc</div>
+        <div class="nav-item">Chấm công ca trực</div>
+        <div class="nav-item">Liên lạc khẩn cấp</div>
+        <div class="nav-item">Truy cập theo phân quyền</div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="header">
+        <div class="header-left">
+          <div class="header-logo">🛡</div>
+          <div>
+            <p class="header-title">Hệ thống Quản lý Cảnh sát</p>
+            <p class="header-copy">Trung tâm Điều hành</p>
+          </div>
+        </div>
+
+        <div class="header-right">
+          <div class="icon-dot" aria-hidden="true"></div>
+          <div class="officer">
+            <div class="officer-meta">
+              <strong>Sĩ quan Nguyễn Văn A</strong>
+              <span>Mã số: CS001</span>
+            </div>
+            <div class="officer-avatar">👮</div>
+          </div>
+        </div>
+      </header>
+
+      <section class="stats">
+        <article class="stat-card">
+          <div class="stat-icon i-blue">△</div>
+          <strong style="color: var(--blue);">12</strong>
+          <span>Vụ việc hôm nay</span>
+        </article>
+        <article class="stat-card">
+          <div class="stat-icon i-yellow">◔</div>
+          <strong style="color: var(--yellow);">5</strong>
+          <span>Đang xử lý</span>
+        </article>
+        <article class="stat-card">
+          <div class="stat-icon i-green">✓</div>
+          <strong style="color: var(--green);">7</strong>
+          <span>Đã giải quyết</span>
+        </article>
+        <article class="stat-card">
+          <div class="stat-icon i-purple">↗</div>
+          <strong style="color: var(--purple);">+15%</strong>
+          <span>Tăng so với hôm qua</span>
+        </article>
+      </section>
+
+      <section class="dashboard">
+        <div class="panel">
+          <div class="panel-head">
+            <h2>Bản đồ vụ việc</h2>
+            <span class="panel-note">Sử dụng bản đồ Mapbox</span>
+          </div>
+
+          <div class="map-wrap">
+            <div class="map-frame" id="incidentMap" aria-label="Bản đồ vụ việc Mapbox"></div>
+            <div class="map-watermark">CẢNH SÁT<br>NHÂN DÂN</div>
+            <div class="map-badge">✩</div>
+
+            <div class="legend">
+              <h3>Mức độ nghiêm trọng</h3>
+              <div class="legend-row"><span class="dot red"></span><span>Cao</span></div>
+              <div class="legend-row"><span class="dot orange"></span><span>Trung bình</span></div>
+              <div class="legend-row"><span class="dot green"></span><span>Thấp</span></div>
+            </div>
+          </div>
+
+          <div class="map-actions">
+            <a class="map-link" href="https://www.mapbox.com/" target="_blank" rel="noopener noreferrer">Mở Mapbox</a>
+            <a class="map-link secondary" href="../index.html">Về đăng nhập</a>
+          </div>
+
+          <div style="margin-top: 14px;color:#a8bddf;line-height:1.6;">
+            Kết nối dữ liệu được cấu hình tự động. Khi người dùng gửi báo cáo từ thiết bị khác, bản đồ này sẽ tự nhận vị trí và hiện thông báo.
+          </div>
+        </div>
+
+        <div class="side">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Vụ mới</h2>
+              <span class="panel-note">Bấm để nhảy tới vị trí</span>
+            </div>
+            <div class="incident-feed" id="incidentFeed">
+              <div class="incident-feed-empty">Đang chờ báo cáo mới từ người dùng.</div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Chấm công</h2>
+              <span class="attendance-time" id="clock">12:06</span>
+            </div>
+
+            <div class="buttons">
+              <button class="btn btn-checkin" id="checkinButton">⎋ Vào ca</button>
+              <button class="btn btn-checkout" id="checkoutButton">⇥ Kết thúc ca</button>
+            </div>
+
+            <div class="mini-stats">
+              <div class="mini-card">
+                <span>Có mặt</span>
+                <strong id="presentCount">4</strong>
+              </div>
+              <div class="mini-card">
+                <span>Đang làm việc</span>
+                <strong id="workingCount" style="color: var(--green);">3</strong>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Liên lạc</h2>
+              <span class="panel-note">Khẩn cấp</span>
+            </div>
+
+            <div class="contact-grid">
+              <div class="contact-card">
+                <strong>115</strong>
+                <span>Cứu thương</span>
+              </div>
+              <div class="contact-card">
+                <strong>114</strong>
+                <span>Cứu hỏa</span>
+              </div>
+            </div>
+
+            <div class="station">
+              <span>TRỤ SỞ</span>
+              <strong>45 Nguyễn Huệ, Quận 1<br>Hotline trực ban: 028 3822 9999</strong>
+            </div>
+
+            <div class="map-actions">
+              <button class="btn btn-primary" id="callStationButton">Gọi điện trụ sở</button>
+              <button class="btn btn-logout" id="logoutButton">Đăng xuất</button>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+  <div class="live-alert" id="liveAlert">
+    <strong>Thông báo mới</strong>
+    <span id="liveAlertText">Đang chờ vụ việc mới từ người dùng.</span>
+  </div>
+
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@microsoft/signalr@8.0.7/dist/browser/signalr.min.js"></script>
+  <script>
+    async function ensureRole(expectedRole) {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          throw new Error("Auth API unavailable");
+        }
+
+        const payload = await response.json();
+        const actualRole = (payload.role || "").toLowerCase();
+        sessionStorage.setItem("policeRole", actualRole);
+
+        if (actualRole !== expectedRole) {
+          window.location.href = payload.redirectPath || "/";
+          return false;
+        }
+
+        return true;
+      } catch {
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole === expectedRole) {
+          return true;
+        }
+
+        sessionStorage.removeItem("policeRole");
+        window.location.href = "/";
+        return false;
+      }
+    }
+
+    ensureRole("police");
+
+    const clockNode = document.getElementById("clock");
+    const presentCount = document.getElementById("presentCount");
+    const workingCount = document.getElementById("workingCount");
+    const checkinButton = document.getElementById("checkinButton");
+    const checkoutButton = document.getElementById("checkoutButton");
+    const callStationButton = document.getElementById("callStationButton");
+    const logoutButton = document.getElementById("logoutButton");
+    const liveAlert = document.getElementById("liveAlert");
+    const liveAlertText = document.getElementById("liveAlertText");
+    const incidentFeed = document.getElementById("incidentFeed");
+    let apiBase = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
+    let refreshTimer;
+    let liveReportMarkers = [];
+    let liveReportEntries = new Map();
+    let seenReportIds = new Set();
+    let latestToastTimer;
+    let audioContext;
+    let hasInitializedReports = false;
+    let currentReports = [];
+    let incidentHubConnection;
+
+    function apiUrl(path) {
+      return `${apiBase}${path}`;
+    }
+
+    function hasUsableApiBase() {
+      return Boolean(apiBase);
+    }
+
+    async function readApiPayload(response) {
+      const contentType = response.headers.get("content-type") || "";
+
+      if (contentType.includes("application/json")) {
+        return await response.json();
+      }
+
+      const text = await response.text();
+      if (text.trim().startsWith("<")) {
+        throw new Error("API chưa được nối đúng. Trang cảnh sát đang nhận HTML thay vì JSON.");
+      }
+
+      return [];
+    }
+
+    function showLiveAlert(message) {
+      liveAlertText.textContent = message;
+      liveAlert.classList.add("show");
+
+      if (latestToastTimer) {
+        window.clearTimeout(latestToastTimer);
+      }
+
+      latestToastTimer = window.setTimeout(() => {
+        liveAlert.classList.remove("show");
+      }, 4200);
+    }
+
+    function ensureAudioReady() {
+      if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+    }
+
+    function playAlarmSound() {
+      try {
+        ensureAudioReady();
+
+        const now = audioContext.currentTime;
+        [0, 0.22].forEach((delay) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+
+          oscillator.type = "square";
+          oscillator.frequency.setValueAtTime(880, now + delay);
+
+          gain.gain.setValueAtTime(0.0001, now + delay);
+          gain.gain.exponentialRampToValueAtTime(0.16, now + delay + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + delay + 0.16);
+
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(now + delay);
+          oscillator.stop(now + delay + 0.18);
+        });
+      } catch (error) {
+        console.error("Khong phat duoc am thanh thong bao", error);
+      }
+    }
+
+    function addPopupActions(reportId) {
+      const popupBody = document.querySelector(".mapboxgl-popup .map-popup");
+      if (!popupBody || popupBody.querySelector(".map-popup-actions")) {
+        return;
+      }
+
+      const actionRow = document.createElement("div");
+      actionRow.className = "map-popup-actions";
+      actionRow.innerHTML = `
+        <button class="popup-btn receive" type="button" data-status="Da tiep nhan">Đã tiếp nhận</button>
+        <button class="popup-btn resolve" type="button" data-status="Da xu ly">Đã xử lý</button>
+      `;
+
+      actionRow.querySelectorAll("button").forEach((button) => {
+        button.addEventListener("click", () => {
+          window.updateIncidentStatus(reportId, button.dataset.status);
+        });
+      });
+
+      popupBody.appendChild(actionRow);
+    }
+
+    window.updateIncidentStatus = async (incidentId, status) => {
+      try {
+        const response = await fetch(apiUrl(`/api/incidents/${incidentId}/status`), {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status })
+        });
+        const payload = await readApiPayload(response);
+
+        if (!response.ok) {
+          throw new Error("Khong cap nhat duoc trang thai.");
+        }
+
+        showLiveAlert(`Đã cập nhật trạng thái: ${status}`);
+        if (payload.incident) {
+          upsertReport(payload.incident);
+          rerenderLiveReports();
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 150));
+        const refreshed = document.querySelector(".mapboxgl-popup-close-button");
+        if (refreshed) {
+          refreshed.click();
+        }
+      } catch (error) {
+        showLiveAlert(error.message || "Cap nhat trang thai that bai.");
+      }
+    };
+
+    function renderIncidentFeed(reports, map) {
+      const userReports = reports.filter((report) => report.Source === "user");
+
+      if (userReports.length === 0) {
+        incidentFeed.innerHTML = `<div class="incident-feed-empty">Đang chờ báo cáo mới từ người dùng.</div>`;
+        return;
+      }
+
+      incidentFeed.innerHTML = userReports
+        .slice(0, 8)
+        .map((report) => `
+          <button class="incident-feed-item" type="button" data-incident-id="${report.Id}">
+            <strong>${report.Title}</strong>
+            <div class="incident-feed-meta">
+              <span>${report.TimeLabel || "--:--"}</span>
+              <span>${report.Status || "Moi tiep nhan"}</span>
+            </div>
+          </button>
+        `)
+        .join("");
+
+      incidentFeed.querySelectorAll("[data-incident-id]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const incidentId = button.getAttribute("data-incident-id");
+          const liveEntry = liveReportEntries.get(incidentId);
+          if (!liveEntry) {
+            return;
+          }
+
+          map.flyTo({
+            center: liveEntry.lngLat,
+            zoom: 13,
+            essential: true
+          });
+          liveEntry.popup.addTo(map);
+        });
+      });
+    }
+
+    document.addEventListener("click", () => {
+      ensureAudioReady();
+    }, { once: true });
+
+    function sortReports(reports) {
+      reports.sort((left, right) => new Date(right.CreatedAt).getTime() - new Date(left.CreatedAt).getTime());
+    }
+
+    function upsertReport(report) {
+      const existingIndex = currentReports.findIndex((item) => item.Id === report.Id);
+      if (existingIndex >= 0) {
+        currentReports[existingIndex] = report;
+      } else {
+        currentReports.push(report);
+      }
+
+      seenReportIds.add(report.Id);
+      sortReports(currentReports);
+    }
+
+    function rerenderLiveReports() {
+      if (typeof window.renderLiveReportsOnMap === "function") {
+        window.renderLiveReportsOnMap(currentReports);
+      }
+    }
+
+    function initMap() {
+      if (typeof mapboxgl === "undefined") {
+        return;
+      }
+
+      mapboxgl.accessToken = "pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q";
+
+      const map = new mapboxgl.Map({
+        container: "incidentMap",
+        style: "mapbox://styles/mapbox/dark-v11",
+        center: [106.7009, 10.7769],
+        zoom: 10
+      });
+
+      map.addControl(new mapboxgl.NavigationControl(), "top-left");
+
+      function clearLiveReports() {
+        liveReportMarkers.forEach((marker) => marker.remove());
+        liveReportMarkers = [];
+        liveReportEntries.clear();
+      }
+
+      function renderLiveReports(reports) {
+        clearLiveReports();
+
+        reports.forEach((report) => {
+          const markerNode = document.createElement("div");
+          const markerClasses = ["incident-marker", report.Source === "user" ? "high" : report.Level];
+          if (report.Source === "user") {
+            markerClasses.push("live-report");
+          }
+          markerNode.className = markerClasses.join(" ");
+          markerNode.dataset.reportId = report.Id;
+          markerNode.setAttribute("role", "button");
+          markerNode.setAttribute("tabindex", "0");
+
+          const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
+            `<div class="map-popup">
+              <strong>${report.Title}</strong>
+              <p>${report.Detail}</p>
+              <div class="map-popup-footer">
+                <span class="map-popup-time">Thời gian: ${report.TimeLabel || "--:--"}</span>
+                <span class="map-popup-status">${report.Status || "Mới tiếp nhận"}</span>
+              </div>
+            </div>`
+          );
+
+          const marker = new mapboxgl.Marker(markerNode)
+            .setLngLat([report.Longitude, report.Latitude])
+            .setPopup(popup)
+            .addTo(map);
+
+          popup.on("open", () => {
+            window.setTimeout(() => addPopupActions(report.Id), 0);
+          });
+
+          markerNode.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              popup.addTo(map);
+            }
+          });
+
+          liveReportMarkers.push(marker);
+          liveReportEntries.set(report.Id, {
+            marker,
+            popup,
+            lngLat: [report.Longitude, report.Latitude]
+          });
+        });
+
+        renderIncidentFeed(reports, map);
+      }
+
+      window.renderLiveReportsOnMap = renderLiveReports;
+
+      async function refreshLiveReports() {
+        try {
+          if (!hasUsableApiBase()) {
+            if (!hasInitializedReports) {
+              hasInitializedReports = true;
+              showLiveAlert("Không tìm thấy máy chủ dữ liệu. Hãy cấu hình configuredPublicApiBase trong app-config.js nếu frontend và backend khác domain.");
+            }
+            return;
+          }
+
+          const response = await fetch(apiUrl("/api/incidents"));
+          if (!response.ok) {
+            const payload = await readApiPayload(response);
+            throw new Error(payload.message || "Không tải được dữ liệu vụ việc từ máy chủ.");
+          }
+
+          const reports = await readApiPayload(response);
+          const newReports = reports.filter((report) => !seenReportIds.has(report.Id));
+
+          currentReports = Array.isArray(reports) ? reports.slice() : [];
+          sortReports(currentReports);
+          currentReports.forEach((report) => seenReportIds.add(report.Id));
+          renderLiveReports(currentReports);
+
+          if (!hasInitializedReports) {
+            hasInitializedReports = true;
+            return;
+          }
+
+          if (newReports.length > 0) {
+            const latestReport = newReports[0];
+            showLiveAlert(`Có báo án mới: ${latestReport.Title}`);
+            playAlarmSound();
+            map.flyTo({
+              center: [latestReport.Longitude, latestReport.Latitude],
+              zoom: 13,
+              essential: true
+            });
+
+            const liveEntry = liveReportEntries.get(latestReport.Id);
+            if (liveEntry) {
+              window.setTimeout(() => {
+                liveEntry.popup.addTo(map);
+              }, 450);
+            }
+          }
+        } catch (error) {
+          showLiveAlert(error.message || "Không tải được dữ liệu vụ việc.");
+          console.error("Khong tai duoc vu viec moi", error);
+        }
+      }
+
+      window.forceRefreshIncidents = refreshLiveReports;
+
+      async function connectIncidentHub() {
+        if (!hasUsableApiBase()) {
+          return;
+        }
+
+        if (typeof signalR === "undefined") {
+          showLiveAlert("SignalR client chua duoc tai.");
+          return;
+        }
+
+        incidentHubConnection = new signalR.HubConnectionBuilder()
+          .withUrl(apiUrl("/hubs/incidents"), { withCredentials: false })
+          .withAutomaticReconnect()
+          .build();
+
+        incidentHubConnection.on("IncidentCreated", async () => {
+          await refreshLiveReports();
+        });
+
+        incidentHubConnection.on("IncidentUpdated", async () => {
+          await refreshLiveReports();
+        });
+
+        incidentHubConnection.onreconnecting(() => {
+          showLiveAlert("Dang ket noi lai kenh realtime...");
+        });
+
+        incidentHubConnection.onreconnected(async () => {
+          showLiveAlert("Da ket noi lai realtime.");
+          await refreshLiveReports();
+        });
+
+        incidentHubConnection.onclose((error) => {
+          if (error) {
+            console.error("Mat ket noi SignalR", error);
+          }
+        });
+
+        try {
+          await incidentHubConnection.start();
+        } catch (error) {
+          showLiveAlert("Không thể kết nối realtime. Hãy kiểm tra địa chỉ API và server.");
+          console.error("Khong ket noi duoc SignalR", error);
+        }
+      }
+
+      const incidents = [
+        {
+          level: "high",
+          coords: [106.7009, 10.7769],
+          title: "Cướp giật tài sản",
+          detail: "Quận 1, TP.HCM. Mức độ cao, cần đội gần nhất tiếp cận."
+        },
+        {
+          level: "medium",
+          coords: [106.6602, 10.7626],
+          title: "Va chạm giao thông",
+          detail: "Quận 3, TP.HCM. Đang điều phối luồng giao thông."
+        },
+        {
+          level: "low",
+          coords: [106.7298, 10.8039],
+          title: "Hỗ trợ dân sự",
+          detail: "TP Thủ Đức, TP.HCM. Yêu cầu xác minh và hướng dẫn người dân."
+        }
+      ];
+
+      incidents[0] = {
+        ...incidents[0],
+        title: "Báo động",
+        detail: "Cảnh báo an ninh tại ngân hàng",
+        time: "06:45",
+        status: "Đã kiểm tra"
+      };
+      incidents[1] = {
+        ...incidents[1],
+        title: "Va chạm",
+        detail: "Điều phối giao thông tại nút giao trung tâm",
+        time: "07:10",
+        status: "Đang xử lý"
+      };
+      incidents[2] = {
+        ...incidents[2],
+        title: "Hỗ trợ",
+        detail: "Yêu cầu xác minh và hướng dẫn người dân",
+        time: "08:20",
+        status: "Đã tiếp nhận"
+      };
+
+      incidents.length = 0;
+
+      map.on("load", async () => {
+        map.addSource("hcm", {
+          type: "geojson",
+          data: "../hcm-boundary.geojson"
+        });
+
+        map.addLayer({
+          id: "hcm-fill",
+          type: "fill",
+          source: "hcm",
+          paint: {
+            "fill-color": "#60a5fa",
+            "fill-opacity": 0.2
+          }
+        });
+
+        map.addLayer({
+          id: "hcm-line",
+          type: "line",
+          source: "hcm",
+          paint: {
+            "line-color": "#1e40af",
+            "line-width": 3
+          }
+        });
+
+        const hcmBounds = [
+          [106.35, 10.35],
+          [107.05, 11.15]
+        ];
+
+        map.fitBounds(hcmBounds, {
+          padding: 30,
+          duration: 0
+        });
+
+        incidents.forEach((incident) => {
+          const markerNode = document.createElement("div");
+          markerNode.className = `incident-marker ${incident.level}`;
+          markerNode.setAttribute("role", "button");
+          markerNode.setAttribute("tabindex", "0");
+
+          const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
+            `<div class="map-popup">
+              <strong>${incident.title}</strong>
+              <p>${incident.detail}</p>
+              <div class="map-popup-footer">
+                <span class="map-popup-time">Thời gian: ${incident.time || "--:--"}</span>
+                <span class="map-popup-status">${incident.status || "Đang cập nhật"}</span>
+              </div>
+            </div>`
+          );
+
+          new mapboxgl.Marker(markerNode)
+            .setLngLat(incident.coords)
+            .setPopup(popup)
+            .addTo(map);
+
+          markerNode.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              popup.addTo(map);
+            }
+          });
+        });
+
+        await refreshLiveReports();
+        await connectIncidentHub();
+      });
+    }
+
+    function updateClock() {
+      const now = new Date();
+      clockNode.textContent = now.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    }
+
+    checkinButton.addEventListener("click", () => {
+      ensureAudioReady();
+      presentCount.textContent = "5";
+      workingCount.textContent = "4";
+      checkinButton.textContent = "✓ Đã vào ca";
+    });
+
+    checkoutButton.addEventListener("click", () => {
+      ensureAudioReady();
+      workingCount.textContent = "2";
+      checkoutButton.textContent = "✓ Đã kết thúc";
+    });
+
+    callStationButton.addEventListener("click", () => {
+      ensureAudioReady();
+      window.alert("Đang kết nối đến trụ sở điều hành.");
+    });
+
+    logoutButton.addEventListener("click", async () => {
+      if (refreshTimer) {
+        window.clearInterval(refreshTimer);
+      }
+      if (incidentHubConnection) {
+        try {
+          await incidentHubConnection.stop();
+        } catch (error) {
+          console.error("Khong dong duoc ket noi SignalR", error);
+        }
+      }
+      try {
+        await fetch("/api/auth/logout", { method: "POST" });
+      } catch {
+      }
+      sessionStorage.removeItem("policeRole");
+      window.location.href = "/";
+    });
+
+    updateClock();
+    initMap();
+    refreshTimer = window.setInterval(() => {
+      if (typeof window.forceRefreshIncidents === "function") {
+        window.forceRefreshIncidents();
+      }
+    }, window.POLICE_REALTIME_POLL_INTERVAL_MS || 4000);
+    setInterval(updateClock, 1000);
+  </script>
+</body>
+</html>

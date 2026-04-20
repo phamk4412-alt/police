@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Đăng nhập hệ thống cảnh sát</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-1: #06101f;
+      --bg-2: #0f2747;
+      --panel: rgba(7, 17, 34, 0.88);
+      --panel-line: rgba(140, 180, 255, 0.16);
+      --text: #e8eef7;
+      --muted: #9eb1c9;
+      --accent: #23b5d3;
+      --danger: #ff6b6b;
+      --ok: #7ae582;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(35, 181, 211, 0.18), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(72, 149, 239, 0.18), transparent 32%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+    }
+
+    .shell {
+      width: min(1040px, 100%);
+      display: grid;
+      grid-template-columns: minmax(320px, 480px) minmax(320px, 1fr);
+      gap: 24px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-line);
+      border-radius: 30px;
+      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero {
+      padding: 36px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 28px;
+    }
+
+    .eyebrow {
+      margin: 0;
+      color: #7ed7e6;
+      font-size: 0.84rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-weight: 700;
+    }
+
+    h1, h2, h3, p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2.6rem, 5vw, 4.2rem);
+      line-height: 1.02;
+      letter-spacing: -0.05em;
+    }
+
+    .lead {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 1.03rem;
+      line-height: 1.8;
+      max-width: 34rem;
+    }
+
+    .role-grid {
+      display: grid;
+      gap: 14px;
+    }
+
+    .role-card {
+      padding: 18px 20px;
+      border-radius: 22px;
+      background: rgba(14, 28, 52, 0.92);
+      border: 1px solid rgba(140, 180, 255, 0.12);
+    }
+
+    .role-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: #ffffff;
+      font-size: 1.02rem;
+    }
+
+    .role-card span {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.96rem;
+    }
+
+    .login-card {
+      padding: 36px;
+      display: grid;
+      gap: 20px;
+    }
+
+    .login-card h2 {
+      font-size: 1.8rem;
+      letter-spacing: -0.03em;
+    }
+
+    .helper {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    form {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: grid;
+      gap: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    input {
+      width: 100%;
+      padding: 15px 16px;
+      border-radius: 16px;
+      border: 1px solid rgba(140, 180, 255, 0.14);
+      background: rgba(2, 8, 18, 0.92);
+      color: #ffffff;
+      font: inherit;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    input:focus {
+      border-color: rgba(35, 181, 211, 0.7);
+      box-shadow: 0 0 0 4px rgba(35, 181, 211, 0.16);
+    }
+
+    .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 6px;
+    }
+
+    button {
+      min-width: 150px;
+      min-height: 48px;
+      padding: 0 20px;
+      border: 0;
+      border-radius: 999px;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(135deg, #23b5d3, #2979ff);
+      box-shadow: 0 18px 34px rgba(41, 121, 255, 0.22);
+      transition: transform 0.2s ease;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    .ghost {
+      background: rgba(18, 32, 58, 0.95);
+      color: #cfe3fb;
+      box-shadow: none;
+      border: 1px solid rgba(140, 180, 255, 0.14);
+    }
+
+    .status {
+      min-height: 24px;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .status.error {
+      color: var(--danger);
+    }
+
+    .status.success {
+      color: var(--ok);
+    }
+
+    .account-box {
+      padding: 18px 20px;
+      border-radius: 22px;
+      background: rgba(14, 28, 52, 0.92);
+      border: 1px solid rgba(140, 180, 255, 0.12);
+    }
+
+    .account-box h3 {
+      margin-bottom: 12px;
+      font-size: 1rem;
+    }
+
+    .account-box ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .account-box li {
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    code {
+      color: #ffffff;
+      font-family: Consolas, monospace;
+    }
+
+    @media (max-width: 900px) {
+      .shell {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="panel hero">
+      <div>
+        <p class="eyebrow">Police Smart System</p>
+        <h1>Đăng nhập để truy cập đúng giao diện nghiệp vụ</h1>
+        <p class="lead">
+          Giao diện mở đầu đã được đổi thành màn hình đăng nhập. Sau khi xác thực đúng tài khoản,
+          hệ thống sẽ chuyển thẳng tới trang tương ứng theo quyền của bạn.
+        </p>
+      </div>
+
+      <div class="role-grid">
+        <div class="role-card">
+          <strong>Admin</strong>
+          <span>Xem báo cáo và cập nhật tin tức cảnh báo cho hệ thống.</span>
+        </div>
+        <div class="role-card">
+          <strong>Người dùng</strong>
+          <span>Xem tin tức, gọi cảnh sát và báo cáo vụ án theo vị trí hiện tại.</span>
+        </div>
+        <div class="role-card">
+          <strong>Cảnh sát</strong>
+          <span>Xem vụ án gần nhất, gọi trụ sở và chấm công ca trực.</span>
+        </div>
+        <div class="role-card">
+          <strong>Nhân viên hỗ trợ</strong>
+          <span>Quan sát, theo dõi và tiếp nhận điện thoại từ tổng đài.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel login-card">
+      <div>
+        <h2>Đăng nhập hệ thống</h2>
+        <p class="helper">Nhập đúng tài khoản để được chuyển tới giao diện đã phân quyền.</p>
+      </div>
+
+      <form id="loginForm">
+        <label>
+          Tên đăng nhập
+          <input id="username" name="username" type="text" autocomplete="username" placeholder="Ví dụ: admin" />
+        </label>
+
+        <label>
+          Mật khẩu
+          <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" />
+        </label>
+
+        <div class="actions">
+          <button type="submit">Đăng nhập</button>
+          <button class="ghost" type="button" id="fillAdmin">Điền tài khoản mẫu</button>
+        </div>
+
+        <p id="status" class="status" aria-live="polite"></p>
+      </form>
+
+      <div class="account-box">
+        <h3>Tài khoản mẫu</h3>
+        <ul>
+          <li><code>admin / admin123</code> → Admin</li>
+          <li><code>user / user123</code> → Người dùng</li>
+          <li><code>police / police123</code> → Cảnh sát</li>
+          <li><code>support / support123</code> → Nhân viên hỗ trợ</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const demoAccounts = {
+      admin: { password: "admin123", role: "Admin", redirectPath: "./admin/admin.html" },
+      user: { password: "user123", role: "User", redirectPath: "./user/user.html" },
+      police: { password: "police123", role: "Police", redirectPath: "./police/police.html" },
+      support: { password: "support123", role: "Support", redirectPath: "./support/support.html" }
+    };
+
+    const roleToStorageValue = {
+      Admin: "admin",
+      User: "user",
+      Police: "police",
+      Support: "support"
+    };
+
+    const form = document.getElementById("loginForm");
+    const statusNode = document.getElementById("status");
+    const fillAdminButton = document.getElementById("fillAdmin");
+
+    function setStatus(message, type) {
+      statusNode.textContent = message;
+      statusNode.className = `status ${type}`.trim();
+    }
+
+    async function readPayload(response) {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        return await response.json();
+      }
+
+      const text = await response.text();
+      return { rawText: text };
+    }
+
+    async function redirectIfAuthenticated() {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (!response.ok) {
+          throw new Error("Auth API unavailable");
+        }
+
+        const payload = await readPayload(response);
+        if (payload.role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
+        }
+        if (payload.redirectPath) {
+          window.location.replace(payload.redirectPath);
+        }
+      } catch {
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole && demoAccounts[storedRole]) {
+          window.location.replace(demoAccounts[storedRole].redirectPath);
+        }
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const username = form.username.value.trim();
+      const password = form.password.value;
+
+      if (!username || !password) {
+        setStatus("Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.", "error");
+        return;
+      }
+
+      setStatus("Đang xác thực tài khoản...", "");
+      try {
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (response.status === 401) {
+          setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(`Auth API returned ${response.status}`);
+        }
+
+        const payload = await readPayload(response);
+        if (payload.role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
+        }
+
+        setStatus("Đăng nhập thành công, đang chuyển trang...", "success");
+        window.location.href = payload.redirectPath || "/";
+      } catch {
+        const normalizedUsername = username.toLowerCase();
+        const demoAccount = demoAccounts[normalizedUsername];
+
+        if (!demoAccount || demoAccount.password !== password) {
+          setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
+          return;
+        }
+
+        sessionStorage.setItem("policeRole", roleToStorageValue[demoAccount.role] || normalizedUsername);
+        setStatus("Không có API, đang vào chế độ demo tĩnh...", "success");
+        window.location.href = demoAccount.redirectPath;
+      }
+    });
+
+    fillAdminButton.addEventListener("click", () => {
+      form.username.value = "admin";
+      form.password.value = "admin123";
+      setStatus("", "");
+    });
+
+    redirectIfAuthenticated();
+  </script>
+</body>
+</html>
