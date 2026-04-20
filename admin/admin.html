@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --panel: #ffffff;
+      --panel-soft: #f8fafc;
+      --border: #dbe4f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --cyan: #0891b2;
+      --blue: #2563eb;
+      --red: #ef4444;
+      --green: #16a34a;
+      --shadow: 0 16px 34px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background:
+        radial-gradient(circle at top right, rgba(14, 165, 233, 0.12), transparent 28%),
+        linear-gradient(180deg, #ffffff, #f7fbff);
+      color: var(--text);
+    }
+
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 48px; }
+    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+    .eyebrow { margin: 0 0 6px; color: var(--cyan); font-size: 0.9rem; font-weight: 700; letter-spacing: 0.08em; }
+    h1 { margin: 0; font-size: clamp(2rem, 4vw, 2.6rem); }
+    .sub { margin: 10px 0 0; color: var(--muted); max-width: 720px; }
+    .btn { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .logout { background: var(--red); color: white; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 24px; }
+    .card, .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 22px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title { color: var(--muted); font-size: 0.95rem; font-weight: 600; }
+    .card strong { display: block; font-size: 2rem; margin-top: 10px; }
+    .card p { margin: 10px 0 0; color: var(--muted); }
+    .cyan strong { color: var(--cyan); }
+    .blue strong { color: var(--blue); }
+    .red strong { color: var(--red); }
+    .green strong { color: var(--green); }
+
+    .main-grid { display: grid; grid-template-columns: 1.55fr 0.82fr 0.95fr; gap: 18px; align-items: start; }
+    .panel h2 { margin: 0 0 18px; font-size: 1.15rem; }
+    .panel h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--muted); }
+
+    .table-head, .table-row {
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr 1fr 0.7fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .table-head {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .table-body { display: grid; gap: 10px; }
+    .table-row {
+      padding: 12px 14px;
+      background: var(--panel-soft);
+      border: 1px solid #e5edf7;
+      border-radius: 16px;
+      font-size: 0.95rem;
+    }
+
+    .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+    .ghost { background: #e2e8f0; color: var(--text); }
+    .primary { background: #06b6d4; color: white; }
+    .updated { color: var(--muted); font-size: 0.9rem; }
+
+    .metric-stack { display: grid; gap: 12px; margin-bottom: 14px; }
+    .metric {
+      background: var(--panel-soft);
+      border: 1px solid #e5edf7;
+      border-radius: 18px;
+      padding: 14px 16px;
+    }
+
+    .metric-title { color: var(--muted); font-size: 0.9rem; font-weight: 700; }
+    .metric-value { margin-top: 6px; font-size: 1.5rem; font-weight: 800; }
+    .metric-note { margin-top: 4px; color: var(--muted); font-size: 0.9rem; }
+
+    .breakdown { color: #475569; font-size: 0.92rem; line-height: 1.5; }
+
+    input, textarea {
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid #cbd5e1;
+      background: var(--panel-soft);
+      color: var(--text);
+      font: inherit;
+    }
+
+    textarea { min-height: 150px; resize: vertical; }
+    .publish-status { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+    .publish-status input { margin-top: 0; }
+
+    @media (max-width: 1024px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <p class="eyebrow">ADMIN DASHBOARD</p>
+        <h1>Quản trị báo cáo, thống kê và tin tức</h1>
+        <p class="sub">Theo dõi số lượng báo cáo theo mức độ, trạng thái xử lý và khu vực nổi bật. Dữ liệu thống kê được tính lại ngay khi admin làm mới báo cáo hoặc đăng tin mới.</p>
+      </div>
+      <button class="btn logout" id="logoutButton">Đăng xuất</button>
+    </div>
+
+    <div class="stats-grid" id="overviewCards"></div>
+
+    <div class="main-grid">
+      <section class="panel">
+        <h2>Báo cáo hiện trường</h2>
+        <div class="table-head">
+          <span>Khu vực</span>
+          <span>Mức độ</span>
+          <span>Trạng thái</span>
+          <span>Giờ</span>
+        </div>
+        <div class="table-body" id="reportTable"></div>
+        <div class="actions">
+          <button class="btn primary" id="exportButton">Xuất báo cáo</button>
+          <button class="btn ghost" id="refreshButton">Làm mới dữ liệu</button>
+          <span class="updated" id="updatedAt"></span>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Thống kê nhanh</h2>
+        <div class="metric-stack">
+          <div class="metric">
+            <div class="metric-title">Tỷ lệ xử lý</div>
+            <div class="metric-value" id="handledRate" style="color: var(--green);"></div>
+            <div class="metric-note" id="handledRateNote"></div>
+          </div>
+          <div class="metric">
+            <div class="metric-title">Mức khẩn</div>
+            <div class="metric-value" id="urgentRate" style="color: var(--red);"></div>
+            <div class="metric-note" id="urgentRateNote"></div>
+          </div>
+          <div class="metric">
+            <div class="metric-title">Khu vực nổi bật</div>
+            <div class="metric-value" id="focusArea" style="color: var(--blue);"></div>
+            <div class="metric-note" id="focusAreaNote"></div>
+          </div>
+        </div>
+        <div class="breakdown" id="breakdown"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Cập nhật tin tức</h2>
+        <label for="newsTitle">Tiêu đề</label>
+        <input id="newsTitle" type="text" value="Cảnh báo giao thông khu vực trung tâm" />
+        <label for="newsContent">Nội dung</label>
+        <textarea id="newsContent">Cập nhật tình hình hiện trường và hướng dẫn người dân đi lại an toàn qua các tuyến thay thế.</textarea>
+        <div class="publish-status">
+          <input id="publishStatus" type="text" value="Chờ xuất bản" />
+          <button class="btn primary" id="publishButton">Đăng tin</button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    if (sessionStorage.getItem("policeRole") !== "admin") {
+      window.location.href = "../index.html";
+    }
+
+    const reports = [
+      { area: "Quận 1", severity: "Khẩn", status: "Đã điều phối", time: "08:42" },
+      { area: "Quận 3", severity: "Trung bình", status: "Đang xác minh", time: "09:15" },
+      { area: "Thủ Đức", severity: "Khẩn", status: "Chờ xử lý", time: "09:28" },
+      { area: "Bình Thạnh", severity: "Thấp", status: "Đã đóng", time: "10:06" },
+      { area: "Quận 7", severity: "Khẩn", status: "Đang xác minh", time: "10:22" },
+      { area: "Gò Vấp", severity: "Trung bình", status: "Đã điều phối", time: "10:41" }
+    ];
+
+    const areas = ["Quận 1", "Quận 3", "Thủ Đức", "Bình Thạnh", "Quận 7", "Gò Vấp", "Tân Bình"];
+    const severities = ["Khẩn", "Trung bình", "Thấp"];
+    let publishedNewsCount = 36;
+
+    const overviewCards = document.getElementById("overviewCards");
+    const reportTable = document.getElementById("reportTable");
+    const updatedAt = document.getElementById("updatedAt");
+    const handledRate = document.getElementById("handledRate");
+    const handledRateNote = document.getElementById("handledRateNote");
+    const urgentRate = document.getElementById("urgentRate");
+    const urgentRateNote = document.getElementById("urgentRateNote");
+    const focusArea = document.getElementById("focusArea");
+    const focusAreaNote = document.getElementById("focusAreaNote");
+    const breakdown = document.getElementById("breakdown");
+    const publishStatus = document.getElementById("publishStatus");
+    const newsTitle = document.getElementById("newsTitle");
+    const newsContent = document.getElementById("newsContent");
+
+    function countBy(key, expected) {
+      return reports.filter(report => report[key] === expected).length;
+    }
+
+    function getFocusArea() {
+      const grouped = {};
+      reports.forEach(report => {
+        grouped[report.area] = (grouped[report.area] || 0) + 1;
+      });
+
+      return Object.entries(grouped).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0] || ["Chưa có", 0];
+    }
+
+    function renderOverview() {
+      const processing = reports.filter(report => report.status === "Đang xác minh" || report.status === "Chờ xử lý").length;
+      const urgent = countBy("severity", "Khẩn");
+      const activeTeams = Math.min(9, Math.max(5, reports.filter(report => report.status === "Đã điều phối" || report.status === "Đã đóng").length + 3));
+
+      overviewCards.innerHTML = `
+        <div class="card cyan">
+          <div class="card-title">Báo cáo hôm nay</div>
+          <strong>${reports.length}</strong>
+          <p>${processing} báo cáo đang cần theo dõi</p>
+        </div>
+        <div class="card blue">
+          <div class="card-title">Tin tức đã đăng</div>
+          <strong>${publishedNewsCount}</strong>
+          <p>${Math.max(1, Math.floor(publishedNewsCount / 12))} bản tin nổi bật trong ngày</p>
+        </div>
+        <div class="card red">
+          <div class="card-title">Ca khẩn cấp</div>
+          <strong>${urgent}</strong>
+          <p>${countBy("status", "Đang xác minh")} ca đang xác minh</p>
+        </div>
+        <div class="card green">
+          <div class="card-title">Đội phản ứng</div>
+          <strong>${activeTeams}</strong>
+          <p>${Math.max(1, activeTeams - 2)} đội sẵn sàng điều phối</p>
+        </div>
+      `;
+    }
+
+    function renderReports() {
+      const sorted = [...reports].sort((a, b) => b.time.localeCompare(a.time));
+      reportTable.innerHTML = sorted.map(report => `
+        <div class="table-row">
+          <span>${report.area}</span>
+          <span>${report.severity}</span>
+          <span>${report.status}</span>
+          <span>${report.time}</span>
+        </div>
+      `).join("");
+    }
+
+    function renderStatistics() {
+      const handled = reports.filter(report => report.status === "Đã điều phối" || report.status === "Đã đóng").length;
+      const urgent = countBy("severity", "Khẩn");
+      const [focus, focusCount] = getFocusArea();
+      const handledPercent = reports.length ? Math.round((handled / reports.length) * 100) : 0;
+
+      handledRate.textContent = `${handledPercent}%`;
+      handledRateNote.textContent = `${handled}/${reports.length} báo cáo đã xử lý hoặc điều phối`;
+
+      urgentRate.textContent = `${urgent} ca`;
+      urgentRateNote.textContent = `${Math.max(0, urgent - 1)} ca khẩn đã có đội tiếp cận`;
+
+      focusArea.textContent = focus;
+      focusAreaNote.textContent = `${focusCount} báo cáo tập trung tại khu vực này`;
+
+      breakdown.innerHTML = `
+        <div>Mức độ: Khẩn ${countBy("severity", "Khẩn")} | Trung bình ${countBy("severity", "Trung bình")} | Thấp ${countBy("severity", "Thấp")}</div>
+        <div>Trạng thái: Điều phối ${countBy("status", "Đã điều phối")} | Xác minh ${countBy("status", "Đang xác minh")} | Chờ ${countBy("status", "Chờ xử lý")} | Đóng ${countBy("status", "Đã đóng")}</div>
+      `;
+    }
+
+    function renderUpdatedTime() {
+      updatedAt.textContent = `Cập nhật lúc ${new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+    }
+
+    function renderDashboard() {
+      renderOverview();
+      renderReports();
+      renderStatistics();
+      renderUpdatedTime();
+    }
+
+    function addIncomingReport() {
+      const now = new Date();
+      const area = areas[now.getMinutes() % areas.length];
+      const severity = severities[now.getMinutes() % severities.length];
+      reports.push({
+        area,
+        severity,
+        status: severity === "Khẩn" ? "Đang xác minh" : "Chờ xử lý",
+        time: now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })
+      });
+      renderDashboard();
+    }
+
+    document.getElementById("refreshButton").addEventListener("click", addIncomingReport);
+
+    document.getElementById("exportButton").addEventListener("click", () => {
+      const [focus, focusCount] = getFocusArea();
+      alert(
+        `Tổng báo cáo: ${reports.length}\n` +
+        `Khẩn cấp: ${countBy("severity", "Khẩn")}\n` +
+        `Đã điều phối hoặc hoàn tất: ${countBy("status", "Đã điều phối") + countBy("status", "Đã đóng")}\n` +
+        `Tin tức đã đăng: ${publishedNewsCount}\n` +
+        `Khu vực nổi bật: ${focus} (${focusCount} báo cáo)`
+      );
+    });
+
+    document.getElementById("publishButton").addEventListener("click", () => {
+      publishedNewsCount += 1;
+      publishStatus.value = `Đã đăng ${new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" })}`;
+      renderDashboard();
+      alert(`Đã cập nhật tin tức:\n${newsTitle.value}\n\n${newsContent.value}`);
+    });
+
+    document.getElementById("logoutButton").addEventListener("click", () => {
+      sessionStorage.removeItem("policeRole");
+      window.location.href = "../index.html";
+    });
+
+    renderDashboard();
+  </script>
+</body>
+</html>

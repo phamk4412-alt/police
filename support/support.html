@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nhân viên hỗ trợ</title>
+  <style>
+    body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: #1c1608; color: #fff8e8; }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 48px; }
+    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
+    h1 { margin: 0; font-size: 2.4rem; }
+    .btn { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; cursor: pointer; }
+    .logout { background: #ef4444; color: white; }
+    .row { display: grid; gap: 18px; grid-template-columns: 1.15fr 0.85fr; }
+    .panel { background: #2a2412; border: 1px solid #5f5228; border-radius: 24px; padding: 22px; }
+    .panel h2 { margin-top: 0; }
+    input, textarea { width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid #73622e; background: #171208; color: white; font: inherit; }
+    textarea { min-height: 130px; resize: vertical; }
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
+    .primary { background: #f59e0b; color: #251b00; }
+    .secondary { background: #f97316; color: white; }
+    .dark { background: #334155; color: white; }
+    @media (max-width: 800px) { .row { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <p>Vai trò: Nhân viên hỗ trợ</p>
+        <h1>Quan sát và tiếp nhận điện thoại</h1>
+      </div>
+      <button class="btn logout" id="logoutButton">Đăng xuất</button>
+    </div>
+    <div class="row">
+      <section class="panel">
+        <h2>Bảng theo dõi</h2>
+        <p>Camera 02: Tập trung đông người - Quận 10 - Đang theo dõi</p>
+        <p>App công dân: Báo mất cắp - Quận 1 - Đã chuyển đội</p>
+        <p>Camera 11: Va chạm giao thông - Bình Thạnh - Chờ xác minh</p>
+        <p>Hotline: Yêu cầu hỗ trợ - Quận 3 - Đang gọi lại</p>
+      </section>
+      <section class="panel">
+        <h2>Tiếp nhận điện thoại</h2>
+        <input type="text" value="0909 123 456" />
+        <input type="text" value="NV Hỗ trợ 01" />
+        <textarea>Mô tả tóm tắt nội dung, mức độ khẩn và yêu cầu hỗ trợ.</textarea>
+        <div class="actions">
+          <button class="btn primary">Tiếp nhận</button>
+          <button class="btn secondary">Chuyển cảnh sát</button>
+          <button class="btn dark">Kết thúc</button>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script>
+    if (sessionStorage.getItem("policeRole") !== "support") {
+      window.location.href = "../index.html";
+    }
+    document.getElementById("logoutButton").addEventListener("click", () => {
+      sessionStorage.removeItem("policeRole");
+      window.location.href = "../index.html";
+    });
+  </script>
+</body>
+</html>
