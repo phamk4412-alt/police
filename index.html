@@ -311,6 +311,13 @@
   </main>
 
   <script>
+    const demoAccounts = {
+      admin: { password: "admin123", role: "Admin", redirectPath: "./admin/admin.html" },
+      user: { password: "user123", role: "User", redirectPath: "./user/user.html" },
+      police: { password: "police123", role: "Police", redirectPath: "./police/police.html" },
+      support: { password: "support123", role: "Support", redirectPath: "./support/support.html" }
+    };
+
     const roleToStorageValue = {
       Admin: "admin",
       User: "user",
@@ -340,7 +347,7 @@
       try {
         const response = await fetch("/api/auth/me");
         if (!response.ok) {
-          return;
+          throw new Error("Auth API unavailable");
         }
 
         const payload = await readPayload(response);
@@ -351,6 +358,10 @@
           window.location.replace(payload.redirectPath);
         }
       } catch {
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole && demoAccounts[storedRole]) {
+          window.location.replace(demoAccounts[storedRole].redirectPath);
+        }
       }
     }
 
@@ -388,7 +399,17 @@
         setStatus("Đăng nhập thành công, đang chuyển trang...", "success");
         window.location.href = payload.redirectPath || "/";
       } catch {
-        setStatus("Không thể kết nối tới máy chủ xác thực.", "error");
+        const normalizedUsername = username.toLowerCase();
+        const demoAccount = demoAccounts[normalizedUsername];
+
+        if (!demoAccount || demoAccount.password !== password) {
+          setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
+          return;
+        }
+
+        sessionStorage.setItem("policeRole", roleToStorageValue[demoAccount.role] || normalizedUsername);
+        setStatus("Không có API, đang vào chế độ demo tĩnh...", "success");
+        window.location.href = demoAccount.redirectPath;
       }
     });
 

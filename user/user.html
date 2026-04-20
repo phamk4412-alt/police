@@ -773,7 +773,7 @@
       try {
         const response = await fetch("/api/auth/me");
         if (!response.ok) {
-          throw new Error("Unauthorized");
+          throw new Error("Auth API unavailable");
         }
 
         const payload = await response.json();
@@ -787,6 +787,11 @@
 
         return true;
       } catch {
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole === expectedRole) {
+          return true;
+        }
+
         sessionStorage.removeItem("policeRole");
         window.location.href = "/";
         return false;
