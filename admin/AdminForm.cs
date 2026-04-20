@@ -69,7 +69,7 @@ namespace WinFormsApp
             _urgentCountValue = urgentCard.ValueLabel;
             _urgentCountDescription = urgentCard.DescriptionLabel;
 
-            var teamCard = CreateOverviewCard(canvas, "Đội phản ứng", new Rectangle(854, 150, 250, 120), Color.FromArgb(46, 204, 113));
+            var teamCard = CreateOverviewCard(canvas, "Ca vào việc", new Rectangle(854, 150, 250, 120), Color.FromArgb(46, 204, 113));
             _teamCountValue = teamCard.ValueLabel;
             _teamCountDescription = teamCard.DescriptionLabel;
 
@@ -178,7 +178,7 @@ namespace WinFormsApp
             _urgentCountDescription.Text = $"{_reports.Count(r => r.Status == "Đang xác minh")} ca đang xác minh";
 
             _teamCountValue.Text = activeTeams.ToString();
-            _teamCountDescription.Text = $"{Math.Max(1, activeTeams - 2)} đội sẵn sàng điều phối";
+            _teamCountDescription.Text = $"{Math.Max(1, activeTeams - 2)} ca đang sẵn sàng xử lý";
 
             _handledRateValue.Text = $"{handledRate}%";
             _handledRateDescription.Text = $"{handledCount}/{_reports.Count} báo cáo đã xử lý hoặc điều phối";
