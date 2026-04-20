@@ -330,12 +330,14 @@
       height: 18px;
       border-radius: 50%;
       border: 3px solid rgba(255, 255, 255, 0.92);
-      box-shadow: 0 0 0 10px rgba(255, 55, 71, 0.12);
+      box-shadow: 0 0 0 8px rgba(255, 255, 255, 0.14);
+      cursor: pointer;
+      transition: transform 0.2s ease;
     }
 
     .incident-marker.high {
       background: #ff3747;
-      animation: pulse 1.8s infinite;
+      animation: urgentPulse 1.2s ease-in-out infinite;
     }
 
     .incident-marker.medium {
@@ -348,22 +350,83 @@
       box-shadow: 0 0 0 8px rgba(16, 199, 90, 0.12);
     }
 
+    .incident-marker:hover {
+      transform: scale(1.08);
+    }
+
+    .mapboxgl-popup {
+      max-width: 340px !important;
+    }
+
+    .mapboxgl-popup-content {
+      padding: 0;
+      border-radius: 20px;
+      overflow: hidden;
+      background: #ffffff;
+      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.28);
+    }
+
+    .mapboxgl-popup-close-button {
+      top: 10px;
+      right: 12px;
+      color: #7b8598;
+      font-size: 1.45rem;
+      line-height: 1;
+    }
+
     .map-popup {
-      color: #1c2434;
+      padding: 18px 20px 16px;
+      color: #51607a;
       line-height: 1.6;
-      font-size: 0.94rem;
+      font-size: 0.96rem;
     }
 
     .map-popup strong {
       display: block;
-      margin-bottom: 6px;
-      color: #0f172a;
+      margin-bottom: 8px;
+      color: #f59e0b;
+      font-size: 1.9rem;
+      line-height: 1.1;
     }
 
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(255, 55, 71, 0.4); }
-      70% { box-shadow: 0 0 0 14px rgba(255, 55, 71, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(255, 55, 71, 0); }
+    .map-popup p {
+      margin: 0 0 14px;
+      color: #66758f;
+    }
+
+    .map-popup-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.95rem;
+    }
+
+    .map-popup-time {
+      color: #94a3b8;
+    }
+
+    .map-popup-status {
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: #d9fbe6;
+      color: #199a5a;
+      font-weight: 700;
+    }
+
+    @keyframes urgentPulse {
+      0% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(255, 55, 71, 0.45);
+      }
+      50% {
+        transform: scale(1.35);
+        box-shadow: 0 0 0 14px rgba(255, 55, 71, 0.08);
+      }
+      100% {
+        transform: scale(0.9);
+        box-shadow: 0 0 0 0 rgba(255, 55, 71, 0.45);
+      }
     }
 
     .map-watermark {
@@ -379,56 +442,11 @@
       font-size: clamp(2rem, 5vw, 4rem);
     }
 
-    .map-badge {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      width: 110px;
-      height: 110px;
-      border-radius: 18px;
-      background: #3450a5;
-      border: 2px solid rgba(255, 204, 0, 0.7);
-      display: grid;
-      place-items: center;
-      box-shadow: 0 18px 28px rgba(0, 0, 0, 0.18);
-      color: #ffd200;
-      font-size: 3rem;
-    }
-
+    .map-watermark,
+    .map-badge,
     .legend {
-      position: absolute;
-      left: 18px;
-      bottom: 18px;
-      padding: 16px 18px;
-      border-radius: 18px;
-      background: rgba(255, 255, 255, 0.9);
-      color: #1d2638;
-      min-width: 180px;
-      box-shadow: 0 12px 26px rgba(0, 0, 0, 0.16);
+      display: none !important;
     }
-
-    .legend h3 {
-      margin: 0 0 12px;
-      font-size: 1rem;
-    }
-
-    .legend-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 8px;
-      font-size: 0.96rem;
-    }
-
-    .dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
-    .dot.red { background: #ff3747; }
-    .dot.orange { background: #ff9f0a; }
-    .dot.green { background: #10c75a; }
 
     .side {
       display: grid;
@@ -794,6 +812,28 @@
         }
       ];
 
+      incidents[0] = {
+        ...incidents[0],
+        title: "Báo động",
+        detail: "Cảnh báo an ninh tại ngân hàng",
+        time: "06:45",
+        status: "Đã kiểm tra"
+      };
+      incidents[1] = {
+        ...incidents[1],
+        title: "Va chạm",
+        detail: "Điều phối giao thông tại nút giao trung tâm",
+        time: "07:10",
+        status: "Đang xử lý"
+      };
+      incidents[2] = {
+        ...incidents[2],
+        title: "Hỗ trợ",
+        detail: "Yêu cầu xác minh và hướng dẫn người dân",
+        time: "08:20",
+        status: "Đã tiếp nhận"
+      };
+
       map.on("load", () => {
         map.addSource("hcm", {
           type: "geojson",
@@ -833,15 +873,31 @@
         incidents.forEach((incident) => {
           const markerNode = document.createElement("div");
           markerNode.className = `incident-marker ${incident.level}`;
+          markerNode.setAttribute("role", "button");
+          markerNode.setAttribute("tabindex", "0");
+
+          const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
+            `<div class="map-popup">
+              <strong>${incident.title}</strong>
+              <p>${incident.detail}</p>
+              <div class="map-popup-footer">
+                <span class="map-popup-time">Thời gian: ${incident.time || "--:--"}</span>
+                <span class="map-popup-status">${incident.status || "Đang cập nhật"}</span>
+              </div>
+            </div>`
+          );
 
           new mapboxgl.Marker(markerNode)
             .setLngLat(incident.coords)
-            .setPopup(
-              new mapboxgl.Popup({ offset: 18 }).setHTML(
-                `<div class="map-popup"><strong>${incident.title}</strong>${incident.detail}</div>`
-              )
-            )
+            .setPopup(popup)
             .addTo(map);
+
+          markerNode.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              popup.addTo(map);
+            }
+          });
         });
       });
     }
