@@ -355,15 +355,15 @@
     }
 
     .mapboxgl-popup {
-      max-width: 300px !important;
+      max-width: 340px !important;
     }
 
     .mapboxgl-popup-content {
       padding: 0;
-      border-radius: 18px;
+      border-radius: 20px;
       overflow: hidden;
       background: #ffffff;
-      box-shadow: 0 16px 30px rgba(15, 23, 42, 0.24);
+      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.28);
     }
 
     .mapboxgl-popup-close-button {
@@ -375,22 +375,22 @@
     }
 
     .map-popup {
-      padding: 14px 16px 13px;
+      padding: 18px 20px 16px;
       color: #51607a;
-      line-height: 1.5;
-      font-size: 0.9rem;
+      line-height: 1.6;
+      font-size: 0.96rem;
     }
 
     .map-popup strong {
       display: block;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       color: #f59e0b;
-      font-size: 1.45rem;
+      font-size: 1.9rem;
       line-height: 1.1;
     }
 
     .map-popup p {
-      margin: 0 0 10px;
+      margin: 0 0 14px;
       color: #66758f;
     }
 
@@ -398,8 +398,8 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      font-size: 0.85rem;
+      gap: 12px;
+      font-size: 0.95rem;
     }
 
     .map-popup-time {
@@ -407,8 +407,8 @@
     }
 
     .map-popup-status {
-      padding: 6px 10px;
-      border-radius: 8px;
+      padding: 8px 14px;
+      border-radius: 10px;
       background: #d9fbe6;
       color: #199a5a;
       font-weight: 700;
@@ -774,7 +774,6 @@
     const checkoutButton = document.getElementById("checkoutButton");
     const callStationButton = document.getElementById("callStationButton");
     const logoutButton = document.getElementById("logoutButton");
-    let refreshTimer;
 
     function initMap() {
       if (typeof mapboxgl === "undefined") {
@@ -791,79 +790,23 @@
       });
 
       map.addControl(new mapboxgl.NavigationControl(), "top-left");
-      const liveReportMarkers = [];
-
-      function clearLiveReportMarkers() {
-        liveReportMarkers.forEach((marker) => marker.remove());
-        liveReportMarkers.length = 0;
-      }
-
-      function renderLiveReports(reports) {
-        clearLiveReportMarkers();
-
-        reports.forEach((report) => {
-          const markerNode = document.createElement("div");
-          markerNode.className = `incident-marker ${report.Level}`;
-          markerNode.setAttribute("role", "button");
-          markerNode.setAttribute("tabindex", "0");
-
-          const popup = new mapboxgl.Popup({ offset: 18 }).setHTML(
-            `<div class="map-popup">
-              <strong>${report.Title}</strong>
-              <p>${report.Detail}</p>
-              <div class="map-popup-footer">
-                <span class="map-popup-time">Thá»i gian: ${report.TimeLabel || "--:--"}</span>
-                <span class="map-popup-status">${report.Status || "Mới tiếp nhận"}</span>
-              </div>
-            </div>`
-          );
-
-          const marker = new mapboxgl.Marker(markerNode)
-            .setLngLat([report.Longitude, report.Latitude])
-            .setPopup(popup)
-            .addTo(map);
-
-          markerNode.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              popup.addTo(map);
-            }
-          });
-
-          liveReportMarkers.push(marker);
-        });
-      }
-
-      async function refreshLiveReports() {
-        try {
-          const response = await fetch("/api/incidents");
-          if (!response.ok) {
-            return;
-          }
-
-          const reports = await response.json();
-          renderLiveReports(reports);
-        } catch (error) {
-          console.error("Khong tai duoc du lieu vu viec", error);
-        }
-      }
 
       const incidents = [
         {
           level: "high",
-          coords: [106.6981, 10.7766],
+          coords: [106.7009, 10.7769],
           title: "Cướp giật tài sản",
           detail: "Quận 1, TP.HCM. Mức độ cao, cần đội gần nhất tiếp cận."
         },
         {
           level: "medium",
-          coords: [106.6866, 10.7823],
+          coords: [106.6602, 10.7626],
           title: "Va chạm giao thông",
           detail: "Quận 3, TP.HCM. Đang điều phối luồng giao thông."
         },
         {
           level: "low",
-          coords: [106.7548, 10.8487],
+          coords: [106.7298, 10.8039],
           title: "Hỗ trợ dân sự",
           detail: "TP Thủ Đức, TP.HCM. Yêu cầu xác minh và hướng dẫn người dân."
         }
@@ -918,8 +861,8 @@
         });
 
         const hcmBounds = [
-          [106.54, 10.34],
-          [107.00, 10.95]
+          [106.35, 10.35],
+          [107.05, 11.15]
         ];
 
         map.fitBounds(hcmBounds, {
@@ -956,9 +899,6 @@
             }
           });
         });
-
-        refreshLiveReports();
-        refreshTimer = window.setInterval(refreshLiveReports, 5000);
       });
     }
 
@@ -986,9 +926,6 @@
     });
 
     logoutButton.addEventListener("click", () => {
-      if (refreshTimer) {
-        window.clearInterval(refreshTimer);
-      }
       sessionStorage.removeItem("policeRole");
       window.location.href = "../index.html";
     });
