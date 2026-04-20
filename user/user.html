@@ -6,6 +6,7 @@
   <title>Người dùng - Trung tâm hỗ trợ người dân</title>
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
   <script src="../app-config.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
 
@@ -681,6 +682,19 @@
               </div>
               <p class="inline-note">Khi cấp quyền vị trí, hệ thống sẽ cập nhật trực tiếp vào trường tọa độ của báo cáo.</p>
             </section>
+
+            <section class="panel">
+              <h2>Theo dõi báo cáo</h2>
+              <div class="status-card">
+                <strong id="latestIncidentTitle">Chưa có báo cáo nào được theo dõi</strong>
+                <span id="latestIncidentMeta">Sau khi gửi báo cáo, trạng thái mới nhất sẽ tự động cập nhật tại đây.</span>
+              </div>
+              <div class="status-card">
+                <strong>Trạng thái hiện tại</strong>
+                <span id="latestIncidentStatus">Chưa có dữ liệu realtime.</span>
+              </div>
+              <p class="inline-note" id="latestIncidentHint">Nếu frontend và backend khác domain, bạn có thể mở trang với tham số <code>?apiBase=https://domain-backend</code> để lưu cấu hình realtime.</p>
+            </section>
           </div>
         </main>
       </div>
@@ -837,7 +851,14 @@
     const reportStatus = document.getElementById("reportStatus");
     const incidentType = document.getElementById("incidentType");
     const incidentDesc = document.getElementById("incidentDesc");
+    const latestIncidentTitle = document.getElementById("latestIncidentTitle");
+    const latestIncidentMeta = document.getElementById("latestIncidentMeta");
+    const latestIncidentStatus = document.getElementById("latestIncidentStatus");
+    const latestIncidentHint = document.getElementById("latestIncidentHint");
     const API_BASE = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
+    const TRACKED_INCIDENT_STORAGE_KEY = "POLICE_LAST_TRACKED_INCIDENT_ID";
+    let trackedIncidentId = "";
+    let incidentHubConnection;
 
     function apiUrl(path) {
       return `${API_BASE}${path}`;
@@ -856,6 +877,95 @@
       }
 
       return { message: text };
+    }
+
+    function updateTrackedIncidentView(incident) {
+      if (!incident) {
+        latestIncidentTitle.textContent = "Chưa có báo cáo nào được theo dõi";
+        latestIncidentMeta.textContent = "Sau khi gửi báo cáo, trạng thái mới nhất sẽ tự động cập nhật tại đây.";
+        latestIncidentStatus.textContent = API_BASE
+          ? "Chưa có dữ liệu realtime."
+          : "Chưa có kết nối tới API realtime.";
+        return;
+      }
+
+      latestIncidentTitle.textContent = incident.Title || "Báo cáo vụ việc";
+      latestIncidentMeta.textContent = `Tọa độ: ${incident.Latitude}, ${incident.Longitude} | Lúc ${incident.TimeLabel || "--:--"}`;
+      latestIncidentStatus.textContent = `Trạng thái: ${incident.Status || "Đang cập nhật"}`;
+    }
+
+    function rememberTrackedIncident(incident) {
+      trackedIncidentId = incident?.Id || "";
+
+      try {
+        if (trackedIncidentId) {
+          window.localStorage.setItem(TRACKED_INCIDENT_STORAGE_KEY, trackedIncidentId);
+        } else {
+          window.localStorage.removeItem(TRACKED_INCIDENT_STORAGE_KEY);
+        }
+      } catch {
+      }
+
+      updateTrackedIncidentView(incident);
+    }
+
+    async function refreshTrackedIncident() {
+      if (!trackedIncidentId || !API_BASE) {
+        return;
+      }
+
+      try {
+        const response = await fetch(apiUrl("/api/incidents"));
+        const payload = await readApiPayload(response);
+
+        if (!response.ok || !Array.isArray(payload)) {
+          return;
+        }
+
+        const incident = payload.find(item => item.Id === trackedIncidentId);
+        if (incident) {
+          updateTrackedIncidentView(incident);
+        }
+      } catch {
+      }
+    }
+
+    async function connectIncidentHub() {
+      if (!API_BASE || typeof signalR === "undefined") {
+        latestIncidentHint.textContent = API_BASE
+          ? "Thư viện SignalR chưa tải xong nên chưa theo dõi realtime được."
+          : "Hãy cấu hình API public để theo dõi trạng thái theo thời gian thực.";
+        return;
+      }
+
+      incidentHubConnection = new signalR.HubConnectionBuilder()
+        .withUrl(apiUrl("/hubs/incidents"), { withCredentials: false })
+        .withAutomaticReconnect()
+        .build();
+
+      incidentHubConnection.on("IncidentCreated", incident => {
+        if (incident?.Id && incident.Id === trackedIncidentId) {
+          updateTrackedIncidentView(incident);
+        }
+      });
+
+      incidentHubConnection.on("IncidentUpdated", incident => {
+        if (incident?.Id && incident.Id === trackedIncidentId) {
+          updateTrackedIncidentView(incident);
+          reportStatus.textContent = `Báo cáo "${incident.Title || "vụ việc"}" đã được cập nhật sang trạng thái: ${incident.Status || "Đang cập nhật"}.`;
+        }
+      });
+
+      incidentHubConnection.onreconnected(async () => {
+        await refreshTrackedIncident();
+      });
+
+      try {
+        await incidentHubConnection.start();
+        latestIncidentHint.textContent = "Kênh realtime đang hoạt động. Khi phản hồi từ trung tâm thay đổi, trạng thái sẽ tự nhảy tại đây.";
+      } catch {
+        latestIncidentHint.textContent = "Không kết nối được realtime. Trang vẫn có thể hiển thị trạng thái khi tải lại dữ liệu.";
+      }
     }
 
     const statisticsPanel = document.getElementById("statisticsPanel");
@@ -1125,6 +1235,10 @@
           throw new Error(payload.message || "Không thể gửi báo cáo.");
         }
 
+        if (payload.incident) {
+          rememberTrackedIncident(payload.incident);
+        }
+
         reportStatus.textContent = `Đã gửi báo cáo "${type}" thành công. Phía cảnh sát sẽ nhận thông báo sau vài giây.`;
       } catch (error) {
         reportStatus.textContent = `${error.message || "Gửi báo cáo thất bại."} Nếu frontend và backend khác domain, hãy cấu hình \`configuredPublicApiBase\` trong app-config.js.`;
@@ -1132,6 +1246,21 @@
         reportButton.disabled = false;
       }
     });
+
+    try {
+      trackedIncidentId = window.localStorage.getItem(TRACKED_INCIDENT_STORAGE_KEY) || "";
+    } catch {
+      trackedIncidentId = "";
+    }
+
+    if (trackedIncidentId) {
+      latestIncidentStatus.textContent = "Đang tải lại trạng thái báo cáo gần nhất...";
+      refreshTrackedIncident();
+    } else {
+      updateTrackedIncidentView(null);
+    }
+
+    connectIncidentHub();
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
