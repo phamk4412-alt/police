@@ -1055,7 +1055,7 @@
         const payload = await readApiPayload(response);
 
         if (!response.ok) {
-          throw new Error("Khong cap nhat duoc trang thai.");
+          throw new Error(payload.message || "Khong cap nhat duoc trang thai.");
         }
 
         showLiveAlert(`Đã cập nhật trạng thái: ${status}`);
@@ -1087,7 +1087,7 @@
           <button class="incident-feed-item" type="button" data-incident-id="${report.Id}">
             <strong>${report.Title}</strong>
             <div class="incident-feed-meta">
-              <span>${report.TimeLabel || "--:--"}</span>
+              <span>${report.District || "TP.HCM"} | ${report.TimeLabel || "--:--"}</span>
               <span>${report.Status || "Moi tiep nhan"}</span>
             </div>
           </button>
@@ -1178,10 +1178,13 @@
             `<div class="map-popup">
               <strong>${report.Title}</strong>
               <p>${report.Detail}</p>
+              <p><strong style="font-size:1rem;color:#1e40af;">${report.Category || "Chua phan loai"}</strong></p>
               <div class="map-popup-footer">
-                <span class="map-popup-time">Thời gian: ${report.TimeLabel || "--:--"}</span>
+                <span class="map-popup-time">Thời gian: ${report.TimeLabel || "--:--"} | ${report.District || "TP.HCM"}</span>
                 <span class="map-popup-status">${report.Status || "Mới tiếp nhận"}</span>
               </div>
+              <p style="margin-top:10px;color:#64748b;">Muc do: ${report.Level || "low"} | Diem: ${report.UrgencyScore || 0}</p>
+              <p style="margin-top:8px;color:#64748b;">Ly do phan loai: ${report.ClassificationReason || "Chua co"}</p>
             </div>`
           );
 

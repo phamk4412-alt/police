@@ -768,6 +768,11 @@
             <label for="incidentDesc">Mô tả</label>
             <textarea id="incidentDesc" placeholder="Mô tả ngắn gọn sự việc, thời gian, dấu hiệu nhận dạng và tình trạng hiện tại.">Tôi vừa phát hiện xe máy bị lấy mất trước cửa hàng, khu vực có camera gần ngã tư.</textarea>
 
+            <div class="status-card">
+              <strong>Danh gia AI</strong>
+              <span id="analysisSummary">He thong se phan tich muc do khan cap tu mo ta cua ban va goi y cach xu ly phu hop.</span>
+            </div>
+
             <div class="actions">
               <button class="btn secondary" id="locateButton">Lấy tọa độ</button>
               <a class="btn logout call-link" id="callButton" href="tel:113">Gọi 113</a>
@@ -1009,6 +1014,7 @@
     const reportStatus = document.getElementById("reportStatus");
     const incidentType = document.getElementById("incidentType");
     const incidentDesc = document.getElementById("incidentDesc");
+    const analysisSummary = document.getElementById("analysisSummary");
     const latestIncidentTitle = document.getElementById("latestIncidentTitle");
     const latestIncidentMeta = document.getElementById("latestIncidentMeta");
     const latestIncidentStatus = document.getElementById("latestIncidentStatus");
@@ -1053,8 +1059,8 @@
       }
 
       latestIncidentTitle.textContent = incident.Title || "Báo cáo vụ việc";
-      latestIncidentMeta.textContent = `Tọa độ: ${incident.Latitude}, ${incident.Longitude} | Lúc ${incident.TimeLabel || "--:--"}`;
-      latestIncidentStatus.textContent = `Trạng thái: ${incident.Status || "Đang cập nhật"}`;
+      latestIncidentMeta.textContent = `Tọa độ: ${incident.Latitude}, ${incident.Longitude} | ${incident.District || "TP.HCM"} | Lúc ${incident.TimeLabel || "--:--"}`;
+      latestIncidentStatus.textContent = `Trạng thái: ${incident.Status || "Đang cập nhật"} | ${incident.Category || "Chua phan loai"} | ${getDangerLevelLabel(incident.Level || "low")}`;
     }
 
     function rememberTrackedIncident(incident) {
@@ -1078,17 +1084,14 @@
       }
 
       try {
-        const response = await fetch(apiUrl("/api/incidents"));
+        const response = await fetch(apiUrl(`/api/incidents/${trackedIncidentId}`));
         const payload = await readApiPayload(response);
 
-        if (!response.ok || !Array.isArray(payload)) {
+        if (!response.ok || !payload || Array.isArray(payload)) {
           return;
         }
 
-        const incident = payload.find(item => item.Id === trackedIncidentId);
-        if (incident) {
-          updateTrackedIncidentView(incident);
-        }
+        updateTrackedIncidentView(payload);
       } catch {
       }
     }
@@ -1264,6 +1267,40 @@
       }
 
       return "low";
+    }
+
+    async function analyzeIncidentDraft(type, description, fallbackLevel) {
+      if (!API_BASE) {
+        return {
+          Category: "Phan loai tam thoi",
+          Level: fallbackLevel,
+          UrgencyScore: fallbackLevel === "high" ? 82 : fallbackLevel === "medium" ? 58 : 35,
+          Reason: "Dang su dung phan loai tam thoi tren thiet bi do API chua san sang.",
+          ShouldCallEmergency: fallbackLevel === "high",
+          Recommendation: fallbackLevel === "high"
+            ? "Neu co nguy co truc tiep, hay goi 113 ngay."
+            : "Ban co the bo sung them chi tiet de phan loai chinh xac hon."
+        };
+      }
+
+      const response = await fetch(apiUrl("/api/incidents/analyze"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: type,
+          detail: description,
+          level: fallbackLevel
+        })
+      });
+
+      const payload = await readApiPayload(response);
+      if (!response.ok) {
+        throw new Error(payload.message || "Khong the phan tich muc do khan cap.");
+      }
+
+      return payload;
     }
 
     function createWeightedCoordinate() {
@@ -1707,7 +1744,16 @@
         return;
       }
 
-      const level = getLevelFromIncidentType(type);
+      const fallbackLevel = getLevelFromIncidentType(type);
+      let analysis = null;
+
+      try {
+        analysis = await analyzeIncidentDraft(type, description, fallbackLevel);
+      } catch (error) {
+        analysisSummary.textContent = error.message || "Khong the phan tich AI luc nay. He thong se dung phan loai tam thoi.";
+      }
+
+      const level = analysis?.Level || fallbackLevel;
       const localReport = {
         type,
         lat: parsedCoordinates.lat,
@@ -1717,13 +1763,19 @@
         level
       };
 
+      if (analysis) {
+        analysisSummary.textContent = `${analysis.Category} | ${getDangerLevelLabel(level)} | Diem ${analysis.UrgencyScore}. ${analysis.Recommendation}`;
+      } else {
+        analysisSummary.textContent = `He thong tam xep muc ${getDangerLevelLabel(level)} tu loai vu viec ban da nhap.`;
+      }
+
       state.reportHistory.unshift(localReport);
       state.reportHistory = state.reportHistory.slice(0, 20);
       saveReportHistory();
       renderReportHistory();
       latestIncidentTitle.textContent = type;
       latestIncidentMeta.textContent = `Tọa độ: ${parsedCoordinates.lat.toFixed(6)}, ${parsedCoordinates.lng.toFixed(6)} | Lúc ${formatTimestamp(localReport.time)}`;
-      latestIncidentStatus.textContent = `Trạng thái: Đã lưu cục bộ (${getDangerLevelLabel(level)}).`;
+      latestIncidentStatus.textContent = `Trạng thái: Đã lưu cục bộ (${getDangerLevelLabel(level)}${analysis?.Category ? ` - ${analysis.Category}` : ""}).`;
 
       reportButton.disabled = true;
       reportStatus.textContent = "Đã lưu báo cáo trên thiết bị. Đang thử đồng bộ lên trung tâm nếu API khả dụng...";
@@ -1756,7 +1808,11 @@
           rememberTrackedIncident(payload.incident);
         }
 
-        reportStatus.textContent = `Đã lưu cục bộ và gửi báo cáo "${type}" thành công lên hệ thống.`;
+        if (payload.analysis) {
+          analysisSummary.textContent = `${payload.analysis.Category} | ${getDangerLevelLabel(payload.analysis.Level)} | Diem ${payload.analysis.UrgencyScore}. ${payload.analysis.Recommendation}`;
+        }
+
+        reportStatus.textContent = `Đã lưu cục bộ và gửi báo cáo "${type}" thành công lên hệ thống. ${payload.analysis?.ShouldCallEmergency ? "He thong danh gia day la muc khan cap cao." : ""}`;
       } catch (error) {
         reportStatus.textContent = `Báo cáo "${type}" đã được lưu cục bộ thành công. ${error.message || "Đồng bộ lên hệ thống chưa khả dụng."}`;
       } finally {
