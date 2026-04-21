@@ -869,7 +869,7 @@ static IncidentAssessment AnalyzeIncident(string? title, string? detail, string?
 
     var profiles = new[]
     {
-        new IncidentProfile("Bao luc / vu khi", "Nguy co bao luc", 92, "co vu khi", "dao", "sung", "hanh hung", "bi tan cong", "chem", "cuop"),
+        new IncidentProfile("Bao luc / vu khi", "Nguy co bao luc", 96, "giet nguoi", "sat hai", "dam chet", "thu tieu", "co vu khi", "dao", "sung", "hanh hung", "bi tan cong", "chem", "cuop"),
         new IncidentProfile("Tai nan / cap cuu", "Su co hien truong", 88, "tai nan", "va cham", "chay", "no", "bi thuong", "mau nhieu", "ngat"),
         new IncidentProfile("Mat cap tai san", "Mat cap tai san", 70, "mat cap", "trom", "giat", "xe may bi lay", "dot nhap"),
         new IncidentProfile("Lua dao", "Nghi ngo lua dao", 64, "lua dao", "otp", "gia mao", "chuyen khoan", "tai khoan ngan hang"),
