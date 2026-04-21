@@ -21,9 +21,9 @@
     }
   }
 
-  // When frontend and backend run on different public domains, set the backend URL here once.
-  // Example: "https://police-api.your-domain.com"
-  const configuredPublicApiBase = "";
+  // Default local .NET backend used by this project.
+  // Override with ?apiBase=... when you want another backend.
+  const configuredPublicApiBase = "http://localhost:5055";
   const runtimeConfiguredApiBase = getRuntimeConfiguredApiBase();
 
   window.POLICE_API_BASE =
