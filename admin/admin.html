@@ -36,6 +36,35 @@
         radial-gradient(circle at top left, rgba(76, 152, 255, 0.12), transparent 26%),
         linear-gradient(180deg, #030919 0%, var(--bg) 100%);
       color: var(--text);
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 36vw;
+      height: 36vw;
+      border-radius: 50%;
+      filter: blur(18px);
+      opacity: 0.32;
+      pointer-events: none;
+      z-index: 0;
+      animation: floatOrb 16s ease-in-out infinite;
+    }
+
+    body::before {
+      top: -10vw;
+      left: -8vw;
+      background: radial-gradient(circle, rgba(76, 152, 255, 0.24), transparent 65%);
+    }
+
+    body::after {
+      right: -10vw;
+      bottom: -10vw;
+      background: radial-gradient(circle, rgba(79, 209, 255, 0.2), transparent 65%);
+      animation-delay: -8s;
     }
 
     h1,
@@ -49,6 +78,16 @@
       min-height: 100vh;
       display: grid;
       grid-template-columns: 280px 1fr;
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    body.ready .layout {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .sidebar {
@@ -103,6 +142,8 @@
       border-radius: 22px;
       background: rgba(16, 24, 44, 0.92);
       border: 1px solid rgba(110, 135, 190, 0.14);
+      position: relative;
+      overflow: hidden;
     }
 
     .nav-card h2 {
@@ -128,6 +169,13 @@
       border: 1px solid rgba(110, 135, 190, 0.14);
       font-weight: 700;
       color: #dce7ff;
+      transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+    }
+
+    .nav-item:hover {
+      transform: translateX(4px);
+      border-color: rgba(79, 209, 255, 0.24);
+      background: rgba(32, 47, 81, 0.98);
     }
 
     .main {
@@ -145,6 +193,18 @@
       gap: 18px;
       flex-wrap: wrap;
       box-shadow: var(--shadow);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .header::after,
+    .card::after,
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 28%, transparent 72%, rgba(255, 255, 255, 0.03));
+      pointer-events: none;
     }
 
     .header-left {
@@ -241,6 +301,14 @@
 
     .card {
       padding: 18px 18px 16px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.22s ease, border-color 0.22s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-3px);
+      border-color: rgba(79, 209, 255, 0.24);
     }
 
     .card-title {
@@ -271,6 +339,8 @@
 
     .panel {
       padding: 22px;
+      position: relative;
+      overflow: hidden;
     }
 
     .panel h2 {
@@ -304,6 +374,13 @@
       border: 1px solid rgba(140, 180, 255, 0.12);
       border-radius: 16px;
       font-size: 0.95rem;
+      transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+    }
+
+    .table-row:hover {
+      transform: translateY(-2px);
+      border-color: rgba(79, 209, 255, 0.24);
+      background: rgba(255, 255, 255, 0.06);
     }
 
     .table-row span:nth-child(2) {
@@ -343,6 +420,35 @@
       border: 1px solid rgba(140, 180, 255, 0.12);
       border-radius: 18px;
       padding: 14px 16px;
+      transition: transform 0.22s ease, border-color 0.22s ease;
+    }
+
+    .metric:hover {
+      transform: translateY(-2px);
+      border-color: rgba(79, 209, 255, 0.22);
+    }
+
+    .live-band {
+      margin: 16px 0 0;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(14, 27, 52, 0.86);
+      border: 1px solid rgba(110, 135, 190, 0.14);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      color: #dce7ff;
+    }
+
+    .live-band strong {
+      font-size: 0.96rem;
+    }
+
+    .live-band span {
+      color: var(--muted);
+      font-size: 0.92rem;
     }
 
     .metric-title {
@@ -409,6 +515,16 @@
 
     .publish-status input {
       margin-top: 0;
+    }
+
+    @keyframes floatOrb {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+
+      50% {
+        transform: translate3d(20px, 22px, 0) scale(1.05);
+      }
     }
 
     @media (max-width: 1024px) {
@@ -491,6 +607,11 @@
           <button class="btn logout" id="logoutButton">Đăng xuất</button>
         </div>
       </header>
+
+      <div class="live-band">
+        <strong>Live operational pulse</strong>
+        <span>Bao cao moi, thong ke nhanh va kenh xuat ban dang duoc bo tri tren cung mot mat bang dieu phoi.</span>
+      </div>
 
       <div class="stats-grid" id="overviewCards"></div>
 
@@ -737,6 +858,9 @@
     });
 
     renderDashboard();
+    window.requestAnimationFrame(() => {
+      document.body.classList.add("ready");
+    });
   </script>
 </body>
 </html>

@@ -3,54 +3,661 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nhân viên hỗ trợ</title>
+  <title>Nhan vien ho tro</title>
   <style>
-    body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: #1c1608; color: #fff8e8; }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 24px 48px; }
-    .top { display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }
-    h1 { margin: 0; font-size: 2.4rem; }
-    .btn { border: 0; border-radius: 999px; padding: 12px 18px; font-weight: 700; cursor: pointer; }
-    .logout { background: #ef4444; color: white; }
-    .row { display: grid; gap: 18px; grid-template-columns: 1.15fr 0.85fr; }
-    .panel { background: #2a2412; border: 1px solid #5f5228; border-radius: 24px; padding: 22px; }
-    .panel h2 { margin-top: 0; }
-    input, textarea { width: 100%; margin-top: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid #73622e; background: #171208; color: white; font: inherit; }
-    textarea { min-height: 130px; resize: vertical; }
-    .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 14px; }
-    .primary { background: #f59e0b; color: #251b00; }
-    .secondary { background: #f97316; color: white; }
-    .dark { background: #334155; color: white; }
-    @media (max-width: 800px) { .row { grid-template-columns: 1fr; } }
+    :root {
+      color-scheme: dark;
+      --bg-1: #120d05;
+      --bg-2: #251603;
+      --panel: rgba(44, 29, 8, 0.88);
+      --panel-strong: #33200a;
+      --panel-soft: rgba(255, 255, 255, 0.04);
+      --line: rgba(245, 158, 11, 0.18);
+      --text: #fff7e8;
+      --muted: #e7d6b5;
+      --gold: #f59e0b;
+      --amber: #fbbf24;
+      --orange: #fb923c;
+      --red: #ef4444;
+      --green: #86efac;
+      --shadow: 0 26px 70px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(245, 158, 11, 0.12), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.14), transparent 26%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2));
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 32vw;
+      height: 32vw;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+      filter: blur(18px);
+      animation: orb 16s ease-in-out infinite;
+    }
+
+    body::before {
+      top: -9vw;
+      left: -8vw;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.24), transparent 65%);
+    }
+
+    body::after {
+      right: -10vw;
+      bottom: -10vw;
+      background: radial-gradient(circle, rgba(251, 146, 60, 0.24), transparent 65%);
+      animation-delay: -8s;
+    }
+
+    .wrap {
+      width: min(1320px, 100%);
+      margin: 0 auto;
+      padding: 28px 24px 40px;
+      position: relative;
+      z-index: 1;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+
+    body.ready .wrap {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: center;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+      padding: 24px 26px;
+      border-radius: 28px;
+      background: rgba(28, 18, 4, 0.82);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(20px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .top::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, rgba(255, 255, 255, 0.08), transparent 28%, transparent 72%, rgba(255, 255, 255, 0.04));
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: #ffd280;
+      font-size: 0.84rem;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      line-height: 1.06;
+      letter-spacing: -0.04em;
+    }
+
+    .sub {
+      margin-top: 10px;
+      max-width: 820px;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .live-pill,
+    .queue-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      font-size: 0.92rem;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff0d1;
+    }
+
+    .live-pill::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 0 6px rgba(134, 239, 172, 0.15);
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 999px;
+      min-height: 46px;
+      padding: 0 18px;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+    }
+
+    .logout {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white;
+      box-shadow: 0 18px 34px rgba(220, 38, 38, 0.2);
+    }
+
+    .primary {
+      background: linear-gradient(135deg, var(--amber), var(--orange));
+      color: #281600;
+      box-shadow: 0 18px 34px rgba(251, 146, 60, 0.22);
+    }
+
+    .secondary {
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: white;
+      box-shadow: 0 18px 34px rgba(249, 115, 22, 0.22);
+    }
+
+    .dark {
+      background: rgba(71, 85, 105, 0.92);
+      color: white;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .stat-card,
+    .panel {
+      border-radius: 24px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::after,
+    .panel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 28%, transparent 75%, rgba(255, 255, 255, 0.03));
+      pointer-events: none;
+    }
+
+    .stat-card {
+      padding: 18px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      margin-top: 12px;
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .stat-note {
+      margin-top: 10px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 0.93rem;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      font-size: 1.18rem;
+      margin-bottom: 14px;
+    }
+
+    .panel-sub {
+      color: var(--muted);
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+
+    .feed-list,
+    .queue-list,
+    .mini-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .feed-item,
+    .queue-item,
+    .mini-item {
+      padding: 16px;
+      border-radius: 18px;
+      background: var(--panel-soft);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+    }
+
+    .feed-item:hover,
+    .queue-item:hover,
+    .mini-item:hover {
+      transform: translateY(-2px);
+      border-color: rgba(251, 191, 36, 0.22);
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    .item-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .item-top strong {
+      font-size: 1rem;
+    }
+
+    .item-meta,
+    .item-copy {
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.94rem;
+    }
+
+    .status-chip {
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      white-space: nowrap;
+    }
+
+    .status-chip.warning {
+      color: #ffe29a;
+      background: rgba(251, 191, 36, 0.14);
+    }
+
+    .status-chip.alert {
+      color: #ffd4d4;
+      background: rgba(239, 68, 68, 0.14);
+    }
+
+    .status-chip.good {
+      color: #caffd9;
+      background: rgba(134, 239, 172, 0.14);
+    }
+
+    .hotline-card {
+      padding: 18px;
+      border-radius: 20px;
+      background: rgba(15, 9, 2, 0.55);
+      border: 1px solid rgba(251, 191, 36, 0.14);
+      margin-bottom: 16px;
+    }
+
+    .hotline-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .hotline-note {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 0.94rem;
+    }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 700;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      margin-top: 10px;
+      padding: 13px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(10, 7, 2, 0.82);
+      color: var(--text);
+      font: inherit;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: rgba(251, 191, 36, 0.4);
+      box-shadow: 0 0 0 4px rgba(251, 191, 36, 0.12);
+      transform: translateY(-1px);
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .footer-note {
+      margin-top: 14px;
+      padding: 13px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px dashed rgba(255, 255, 255, 0.08);
+      color: var(--muted);
+      line-height: 1.55;
+      font-size: 0.93rem;
+    }
+
+    @keyframes orb {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+
+      50% {
+        transform: translate3d(20px, 20px, 0) scale(1.06);
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .stats-grid,
+      .layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .wrap {
+        padding: 18px 14px 28px;
+      }
+
+      .top,
+      .panel,
+      .stat-card {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="top">
       <div>
-        <p>Vai trò: Nhân viên hỗ trợ</p>
-        <h1>Quan sát và tiếp nhận điện thoại</h1>
+        <p class="eyebrow">Support Desk</p>
+        <h1>Quan sat, tiep nhan va dieu phoi nhanh</h1>
+        <p class="sub">Giao dien ho tro duoc nang cap theo huong contact center hien dai: nhin nhanh hang doi, muc do uu tien, tien trinh xu ly va thao tac mot cham.</p>
       </div>
-      <button class="btn logout" id="logoutButton">Đăng xuất</button>
+      <div class="top-actions">
+        <div class="live-pill">Ca truc online</div>
+        <div class="queue-pill" id="queueCounter">04 cuoc cho xu ly</div>
+        <button class="btn logout" id="logoutButton">Dang xuat</button>
+      </div>
     </div>
-    <div class="row">
-      <section class="panel">
-        <h2>Bảng theo dõi</h2>
-        <p>Camera 02: Tập trung đông người - Quận 10 - Đang theo dõi</p>
-        <p>App công dân: Báo mất cắp - Quận 1 - Đã chuyển đội</p>
-        <p>Camera 11: Va chạm giao thông - Bình Thạnh - Chờ xác minh</p>
-        <p>Hotline: Yêu cầu hỗ trợ - Quận 3 - Đang gọi lại</p>
-      </section>
-      <section class="panel">
-        <h2>Tiếp nhận điện thoại</h2>
-        <input type="text" value="0909 123 456" />
-        <input type="text" value="NV Hỗ trợ 01" />
-        <textarea>Mô tả tóm tắt nội dung, mức độ khẩn và yêu cầu hỗ trợ.</textarea>
-        <div class="actions">
-          <button class="btn primary">Tiếp nhận</button>
-          <button class="btn secondary">Chuyển cảnh sát</button>
-          <button class="btn dark">Kết thúc</button>
-        </div>
-      </section>
+
+    <section class="stats-grid">
+      <article class="stat-card">
+        <div class="stat-label">Cuoc den dang mo</div>
+        <div class="stat-value">12</div>
+        <div class="stat-note">4 cuoc can chuyen canh sat va 3 cuoc dang doi goi lai.</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">Thoi gian phan hoi</div>
+        <div class="stat-value">01:42</div>
+        <div class="stat-note">Thoi gian trung binh tu tiep nhan den tao phieu ho tro.</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">Muc uu tien cao</div>
+        <div class="stat-value">05</div>
+        <div class="stat-note">Tinh huong lien quan an ninh, va cham va mat cap tai san.</div>
+      </article>
+      <article class="stat-card">
+        <div class="stat-label">Nhan su san sang</div>
+        <div class="stat-value">08</div>
+        <div class="stat-note">6 nhan vien hotline va 2 dieu phoi vien truc cap nhat.</div>
+      </article>
+    </section>
+
+    <div class="layout">
+      <div class="stack">
+        <section class="panel">
+          <h2>Bang theo doi song</h2>
+          <p class="panel-sub">Nhung dong su kien duoc bo tri nhu mot feed nghiep vu de nhin nhanh muc do can thiep va nguon phat sinh.</p>
+          <div class="feed-list">
+            <article class="feed-item">
+              <div class="item-top">
+                <strong>Camera 02 - Quan 10</strong>
+                <span class="status-chip warning">Dang theo doi</span>
+              </div>
+              <div class="item-copy">Phat hien dong nguoi tap trung bat thuong gan nga tu. He thong da danh dau theo doi 10 phut lien tuc.</div>
+            </article>
+            <article class="feed-item">
+              <div class="item-top">
+                <strong>App cong dan - Quan 1</strong>
+                <span class="status-chip good">Da chuyen doi</span>
+              </div>
+              <div class="item-copy">Bao mat cap tai san da duoc tao phieu va chuyen sang kenh canh sat truc dia ban.</div>
+            </article>
+            <article class="feed-item">
+              <div class="item-top">
+                <strong>Camera 11 - Binh Thanh</strong>
+                <span class="status-chip alert">Cho xac minh</span>
+              </div>
+              <div class="item-copy">Va cham giao thong gay un tac cuc bo. Can xac minh so nguoi lien quan va huong dieu tiet.</div>
+            </article>
+            <article class="feed-item">
+              <div class="item-top">
+                <strong>Hotline - Quan 3</strong>
+                <span class="status-chip warning">Dang goi lai</span>
+              </div>
+              <div class="item-copy">Nguoi dan bao mat lien lac trong qua trinh mo ta su viec, he thong dat uu tien callback.</div>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Hang doi can xu ly</h2>
+          <p class="panel-sub">Cac muc duoc gom theo logic call center: khan cap, can xac minh, va dang cho nhan vien tiep quan.</p>
+          <div class="queue-list">
+            <article class="queue-item">
+              <div class="item-top">
+                <strong>Mat cap xe may</strong>
+                <span class="status-chip alert">Uu tien cao</span>
+              </div>
+              <div class="item-meta">Quan 1 | 09:12 | Can chot camera lan can va tao ma tra cuu cho nguoi dan.</div>
+            </article>
+            <article class="queue-item">
+              <div class="item-top">
+                <strong>Phan anh gay roi</strong>
+                <span class="status-chip warning">Can goi lai</span>
+              </div>
+              <div class="item-meta">Quan 5 | 09:18 | Chua du mo ta ve so nguoi tham gia va tinh hinh hien tai.</div>
+            </article>
+            <article class="queue-item">
+              <div class="item-top">
+                <strong>Va cham giao thong</strong>
+                <span class="status-chip good">Da nhan</span>
+              </div>
+              <div class="item-meta">Binh Thanh | 09:21 | Dang cho dieu phoi vien chuyen doi canh sat giao thong.</div>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <div class="stack">
+        <section class="panel">
+          <h2>Tiep nhan cuoc goi</h2>
+          <div class="hotline-card">
+            <div class="hotline-top">
+              <strong>Caller channel active</strong>
+              <span class="status-chip good">SLA on track</span>
+            </div>
+            <div class="hotline-note">Thong tin duoi day duoc bo tri lai de nhan vien thao tac nhanh hon trong giai doan mo ta tinh huong, danh dau do khan va chuyen doi nghiep vu.</div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label for="callerPhone">So dien thoai</label>
+              <input id="callerPhone" type="text" value="0909 123 456" />
+            </div>
+            <div>
+              <label for="staffName">Nhan vien tiep nhan</label>
+              <input id="staffName" type="text" value="NV Ho tro 01" />
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <label for="priorityLevel">Muc do uu tien</label>
+              <select id="priorityLevel">
+                <option selected>Khan cap</option>
+                <option>Cao</option>
+                <option>Trung binh</option>
+                <option>Thap</option>
+              </select>
+            </div>
+            <div>
+              <label for="handoffTo">Huong chuyen</label>
+              <select id="handoffTo">
+                <option selected>Canh sat truc</option>
+                <option>Dieu phoi vien</option>
+                <option>Xu ly noi bo</option>
+              </select>
+            </div>
+          </div>
+
+          <label for="callSummary">Tom tat noi dung</label>
+          <textarea id="callSummary">Mo ta ngan tinh huong, vi tri gan dung, dau hieu nhan dang, so nguoi lien quan va yeu cau ho tro de doi xu ly tiep nhan nhanh hon.</textarea>
+
+          <div class="actions">
+            <button class="btn primary" id="acceptButton">Tiep nhan</button>
+            <button class="btn secondary" id="handoffButton">Chuyen canh sat</button>
+            <button class="btn dark" id="finishButton">Ket thuc</button>
+          </div>
+
+          <div class="footer-note" id="actionStatus">Sang thai san sang. Cuoc goi se duoc cap nhat vao hang doi ngay khi nhan vien thao tac.</div>
+        </section>
+
+        <section class="panel">
+          <h2>Nhip van hanh</h2>
+          <p class="panel-sub">Bo thong tin ben canh duoc thiet ke nhu mot operational summary de doi support nam duoc trang thai tuc thi.</p>
+          <div class="mini-list">
+            <article class="mini-item">
+              <div class="item-top">
+                <strong>Khung gio cao diem</strong>
+                <span class="status-chip warning">09:00 - 11:00</span>
+              </div>
+              <div class="item-meta">Tang truoc nguoi truc tong dai va uu tien cac phan anh giao thong, mat cap, va goi khan.</div>
+            </article>
+            <article class="mini-item">
+              <div class="item-top">
+                <strong>Kenh uu tien</strong>
+                <span class="status-chip good">App + Hotline</span>
+              </div>
+              <div class="item-meta">Giu thong diep phan hoi nhat quan de nguoi dan nhan duoc huong dan ro rang trong 30 giay dau.</div>
+            </article>
+            <article class="mini-item">
+              <div class="item-top">
+                <strong>Canh bao hien tai</strong>
+                <span class="status-chip alert">03 muc can chu y</span>
+              </div>
+              <div class="item-meta">Hai phan anh lien quan khu trung tam va mot yeu cau callback chua xac minh duoc toa do cu the.</div>
+            </article>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
   <script>
@@ -84,6 +691,31 @@
     }
 
     ensureRole("support");
+
+    const queueCounter = document.getElementById("queueCounter");
+    const actionStatus = document.getElementById("actionStatus");
+    const acceptButton = document.getElementById("acceptButton");
+    const handoffButton = document.getElementById("handoffButton");
+    const finishButton = document.getElementById("finishButton");
+
+    function setActionStatus(message) {
+      actionStatus.textContent = message;
+    }
+
+    acceptButton.addEventListener("click", () => {
+      queueCounter.textContent = "03 cuoc cho xu ly";
+      setActionStatus("Da tiep nhan cuoc goi va tao phieu ho tro. Ban co the bo sung ghi chu truoc khi chuyen doi.");
+    });
+
+    handoffButton.addEventListener("click", () => {
+      queueCounter.textContent = "02 cuoc cho xu ly";
+      setActionStatus("Da chuyen thong tin sang kenh canh sat truc. He thong giu lai tom tat de doi tiep nhan theo doi.");
+    });
+
+    finishButton.addEventListener("click", () => {
+      setActionStatus("Cuoc goi da duoc ket thuc va luu vao lich su thao tac cua ca truc.");
+    });
+
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
         await fetch("/api/auth/logout", { method: "POST" });
@@ -92,6 +724,10 @@
 
       sessionStorage.removeItem("policeRole");
       window.location.href = "/";
+    });
+
+    window.requestAnimationFrame(() => {
+      document.body.classList.add("ready");
     });
   </script>
 </body>
