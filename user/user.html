@@ -1018,14 +1018,14 @@
     const reportHistoryNote = document.getElementById("reportHistoryNote");
     const nearbyDangerList = document.getElementById("nearbyDangerList");
     const nearbyDangerNote = document.getElementById("nearbyDangerNote");
-    const API_BASE = (window.APP_CONFIG?.apiBaseUrl || window.POLICE_API_BASE || "https://police-otit.onrender.com").replace(/\/$/, "");
+    const API_BASE = (window.APP_CONFIG?.apiBaseUrl || window.POLICE_API_BASE || "").replace(/\/$/, "");
     const TRACKED_INCIDENT_STORAGE_KEY = "POLICE_LAST_TRACKED_INCIDENT_ID";
     const USER_LOCATION_SESSION_KEY = "userLocation";
     let trackedIncidentId = "";
     let incidentHubConnection;
 
     function apiUrl(path) {
-      return `${API_BASE}${path}`;
+      return window.APP_CONFIG?.apiUrl ? window.APP_CONFIG.apiUrl(path) : `${API_BASE}${path}`;
     }
 
     async function readApiPayload(response) {
@@ -1079,7 +1079,7 @@
       }
 
       try {
-        const response = await fetch(apiUrl(`/api/incidents/${trackedIncidentId}`), { credentials: "include" });
+        const response = await apiFetch(`/api/incidents/${trackedIncidentId}`);
         const payload = await readApiPayload(response);
 
         if (!response.ok || !payload || Array.isArray(payload)) {
@@ -1291,8 +1291,7 @@
         };
       }
 
-      const response = await fetch(apiUrl("/api/incidents/analyze"), {
-        credentials: "include",
+      const response = await apiFetch("/api/incidents/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -1794,8 +1793,7 @@
           throw new Error("Không tìm thấy địa chỉ máy chủ tiếp nhận báo cáo.");
         }
 
-        const response = await fetch(apiUrl("/api/incidents"), {
-          credentials: "include",
+        const response = await apiFetch("/api/incidents", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"

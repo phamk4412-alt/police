@@ -933,7 +933,7 @@
     const liveAlert = document.getElementById("liveAlert");
     const liveAlertText = document.getElementById("liveAlertText");
     const incidentFeed = document.getElementById("incidentFeed");
-    let apiBase = (window.APP_CONFIG?.apiBaseUrl || window.POLICE_API_BASE || "https://police-otit.onrender.com").replace(/\/$/, "");
+    let apiBase = (window.APP_CONFIG?.apiBaseUrl || window.POLICE_API_BASE || "").replace(/\/$/, "");
     let refreshTimer;
     let liveReportMarkers = [];
     let liveReportEntries = new Map();
@@ -945,7 +945,7 @@
     let incidentHubConnection;
 
     function apiUrl(path) {
-      return `${apiBase}${path}`;
+      return window.APP_CONFIG?.apiUrl ? window.APP_CONFIG.apiUrl(path) : `${apiBase}${path}`;
     }
 
     function hasUsableApiBase() {
@@ -1040,8 +1040,7 @@
 
     window.updateIncidentStatus = async (incidentId, status) => {
       try {
-        const response = await fetch(apiUrl(`/api/incidents/${incidentId}/status`), {
-          credentials: "include",
+        const response = await apiFetch(`/api/incidents/${incidentId}/status`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json"
@@ -1223,7 +1222,7 @@
             return;
           }
 
-          const response = await fetch(apiUrl("/api/incidents"), { credentials: "include" });
+          const response = await apiFetch("/api/incidents");
           if (!response.ok) {
             const payload = await readApiPayload(response);
             throw new Error(payload.message || "Không tải được dữ liệu vụ việc từ máy chủ.");
