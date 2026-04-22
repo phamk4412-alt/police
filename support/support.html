@@ -660,26 +660,30 @@
       </div>
     </div>
   </div>
-  <script src="../app-config.js"></script>
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await apiFetch("/api/auth/me");
+        const response = await fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
 
         const payload = await response.json();
-        const actualRole = (payload.Role || payload.role || "").toLowerCase();
+        const actualRole = (payload.role || "").toLowerCase();
         sessionStorage.setItem("policeRole", actualRole);
 
         if (actualRole !== expectedRole) {
-          window.location.href = payload.RedirectPath || payload.redirectPath || "/";
+          window.location.href = payload.redirectPath || "/";
           return false;
         }
 
         return true;
       } catch {
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole === expectedRole) {
+          return true;
+        }
+
         sessionStorage.removeItem("policeRole");
         window.location.href = "/";
         return false;
@@ -714,11 +718,10 @@
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
-        await apiFetch("/api/auth/logout", { method: "POST" });
+        await fetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
 
-      window.APP_CONFIG?.clearAuthToken?.();
       sessionStorage.removeItem("policeRole");
       window.location.href = "/";
     });

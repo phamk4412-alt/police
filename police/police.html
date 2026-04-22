@@ -899,22 +899,27 @@
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await apiFetch("/api/auth/me");
+        const response = await fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
 
         const payload = await response.json();
-        const actualRole = (payload.Role || payload.role || "").toLowerCase();
+        const actualRole = (payload.role || "").toLowerCase();
         sessionStorage.setItem("policeRole", actualRole);
 
         if (actualRole !== expectedRole) {
-          window.location.href = payload.RedirectPath || payload.redirectPath || "/";
+          window.location.href = payload.redirectPath || "/";
           return false;
         }
 
         return true;
       } catch {
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole === expectedRole) {
+          return true;
+        }
+
         sessionStorage.removeItem("policeRole");
         window.location.href = "/";
         return false;
@@ -933,7 +938,7 @@
     const liveAlert = document.getElementById("liveAlert");
     const liveAlertText = document.getElementById("liveAlertText");
     const incidentFeed = document.getElementById("incidentFeed");
-    let apiBase = (window.APP_CONFIG?.apiBaseUrl || window.POLICE_API_BASE || "").replace(/\/$/, "");
+    let apiBase = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
     let refreshTimer;
     let liveReportMarkers = [];
     let liveReportEntries = new Map();
@@ -945,7 +950,7 @@
     let incidentHubConnection;
 
     function apiUrl(path) {
-      return window.APP_CONFIG?.apiUrl ? window.APP_CONFIG.apiUrl(path) : `${apiBase}${path}`;
+      return `${apiBase}${path}`;
     }
 
     function hasUsableApiBase() {
@@ -1040,7 +1045,7 @@
 
     window.updateIncidentStatus = async (incidentId, status) => {
       try {
-        const response = await apiFetch(`/api/incidents/${incidentId}/status`, {
+        const response = await fetch(apiUrl(`/api/incidents/${incidentId}/status`), {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json"
@@ -1217,12 +1222,12 @@
           if (!hasUsableApiBase()) {
             if (!hasInitializedReports) {
               hasInitializedReports = true;
-              showLiveAlert("Không kết nối được máy chủ dữ liệu. Vui lòng kiểm tra app-config.js và backend Render.");
+              showLiveAlert("Không tìm thấy máy chủ dữ liệu. Hãy cấu hình configuredPublicApiBase trong app-config.js nếu frontend và backend khác domain.");
             }
             return;
           }
 
-          const response = await apiFetch("/api/incidents");
+          const response = await fetch(apiUrl("/api/incidents"));
           if (!response.ok) {
             const payload = await readApiPayload(response);
             throw new Error(payload.message || "Không tải được dữ liệu vụ việc từ máy chủ.");
@@ -1277,10 +1282,7 @@
         }
 
         incidentHubConnection = new signalR.HubConnectionBuilder()
-          .withUrl(apiUrl("/hubs/incidents"), {
-            withCredentials: true,
-            accessTokenFactory: () => window.APP_CONFIG?.getAuthToken?.() || ""
-          })
+          .withUrl(apiUrl("/hubs/incidents"), { withCredentials: false })
           .withAutomaticReconnect()
           .build();
 
@@ -1303,24 +1305,67 @@
 
         incidentHubConnection.onclose((error) => {
           if (error) {
-            console.warn("Mat ket noi SignalR", error);
+            console.error("Mat ket noi SignalR", error);
           }
         });
 
         try {
           await incidentHubConnection.start();
         } catch (error) {
-          showLiveAlert("Không kết nối được realtime. Trang vẫn tiếp tục tải dữ liệu bằng API.");
-          console.warn("Khong ket noi duoc SignalR", error);
+          showLiveAlert("Không thể kết nối realtime. Hãy kiểm tra địa chỉ API và server.");
+          console.error("Khong ket noi duoc SignalR", error);
         }
       }
 
-      const incidents = [];
+      const incidents = [
+        {
+          level: "high",
+          coords: [106.7009, 10.7769],
+          title: "Cướp giật tài sản",
+          detail: "Quận 1, TP.HCM. Mức độ cao, cần đội gần nhất tiếp cận."
+        },
+        {
+          level: "medium",
+          coords: [106.6602, 10.7626],
+          title: "Va chạm giao thông",
+          detail: "Quận 3, TP.HCM. Đang điều phối luồng giao thông."
+        },
+        {
+          level: "low",
+          coords: [106.7298, 10.8039],
+          title: "Hỗ trợ dân sự",
+          detail: "TP Thủ Đức, TP.HCM. Yêu cầu xác minh và hướng dẫn người dân."
+        }
+      ];
+
+      incidents[0] = {
+        ...incidents[0],
+        title: "Báo động",
+        detail: "Cảnh báo an ninh tại ngân hàng",
+        time: "06:45",
+        status: "Đã kiểm tra"
+      };
+      incidents[1] = {
+        ...incidents[1],
+        title: "Va chạm",
+        detail: "Điều phối giao thông tại nút giao trung tâm",
+        time: "07:10",
+        status: "Đang xử lý"
+      };
+      incidents[2] = {
+        ...incidents[2],
+        title: "Hỗ trợ",
+        detail: "Yêu cầu xác minh và hướng dẫn người dân",
+        time: "08:20",
+        status: "Đã tiếp nhận"
+      };
+
+      incidents.length = 0;
 
       map.on("load", async () => {
         map.addSource("hcm", {
           type: "geojson",
-          data: apiUrl("/hcm-boundary.geojson")
+          data: "../hcm-boundary.geojson"
         });
 
         map.addLayer({
@@ -1426,10 +1471,9 @@
         }
       }
       try {
-        await apiFetch("/api/auth/logout", { method: "POST" });
+        await fetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
-      window.APP_CONFIG?.clearAuthToken?.();
       sessionStorage.removeItem("policeRole");
       window.location.href = "/";
     });

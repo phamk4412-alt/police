@@ -1,33 +1,16 @@
 using System.Globalization;
-using System.Net;
 using System.Security.Claims;
-using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Json;
-using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Npgsql;
 using PoliceWebServer.Data;
 using PoliceWebServer.Hubs;
 using PoliceWebServer.Models;
 
 var builder = WebApplication.CreateBuilder(args);
-
-ConfigureRenderPort(builder);
-
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
-
-var corsOrigins = ResolveCorsOrigins(builder.Configuration, builder.Environment);
-var useCrossSiteCookies = builder.Environment.IsProduction() || !string.IsNullOrWhiteSpace(builder.Configuration["FRONTEND_URL"]);
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -38,7 +21,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicies.OpenRealtime, policy =>
         policy
-            .WithOrigins(corsOrigins.ToArray())
+            .SetIsOriginAllowed(_ => true)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -50,12 +33,7 @@ builder.Services
     {
         options.Cookie.Name = "PoliceSmartHub.Auth";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SecurePolicy = builder.Environment.IsProduction()
-            ? CookieSecurePolicy.Always
-            : CookieSecurePolicy.SameAsRequest;
-        options.Cookie.SameSite = useCrossSiteCookies
-            ? SameSiteMode.None
-            : SameSiteMode.Lax;
+        options.Cookie.SameSite = SameSiteMode.Lax;
         options.LoginPath = "/";
         options.AccessDeniedPath = "/";
         options.SlidingExpiration = true;
@@ -87,7 +65,7 @@ builder.Services.AddSignalR().AddJsonProtocol(options =>
 
 builder.Services.AddDbContext<IncidentDbContext>(options =>
 {
-    var provider = ResolveDatabaseProvider(builder.Configuration, builder.Environment);
+    var provider = ResolveDatabaseProvider(builder.Configuration);
     var sqlServerConnection = ResolveConnectionString(builder.Configuration, "SqlServer");
     var postgresConnection = ResolveConnectionString(builder.Configuration, "Postgres");
 
@@ -105,18 +83,13 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
         case DatabaseProviders.Postgres:
             if (string.IsNullOrWhiteSpace(postgresConnection))
             {
-                throw new InvalidOperationException("DATABASE_URL, POSTGRESQL_ADDON_URI, POLICE_POSTGRES_CONNECTION hoac ConnectionStrings:Postgres chua duoc cau hinh.");
+                throw new InvalidOperationException("ConnectionStrings:Postgres chua duoc cau hinh.");
             }
 
             options.UseNpgsql(postgresConnection);
             break;
 
         case DatabaseProviders.InMemory:
-            if (builder.Environment.IsProduction())
-            {
-                throw new InvalidOperationException("Production khong duoc dung InMemory khi chua cau hinh ro POLICE_DATABASE_PROVIDER=inmemory.");
-            }
-
             options.UseInMemoryDatabase("PoliceSmartHub");
             break;
 
@@ -126,17 +99,9 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
 });
 
 var app = builder.Build();
-var startupProvider = ResolveDatabaseProvider(app.Configuration, app.Environment);
+var demoOpenAccess = builder.Configuration.GetValue("DemoOpenAccess", true);
 
-app.Logger.LogInformation(
-    "Starting PoliceWebServer. Environment={Environment}; Urls={Urls}; DatabaseProvider={DatabaseProvider}; ConnectionStringConfigured={ConnectionStringConfigured}; CorsOrigins={CorsOrigins}",
-    app.Environment.EnvironmentName,
-    string.Join(",", app.Urls),
-    startupProvider,
-    HasConfiguredConnectionString(app.Configuration, startupProvider),
-    string.Join(",", corsOrigins));
-
-var repoRoot = ResolveStaticRoot(app.Environment.ContentRootPath);
+var repoRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, ".."));
 var staticAssets = new StaticAssetPaths(
     IndexFile: Path.Combine(repoRoot, "index.html"),
     AdminFile: Path.Combine(repoRoot, "admin", "admin.html"),
@@ -146,143 +111,63 @@ var staticAssets = new StaticAssetPaths(
     BoundaryFile: Path.Combine(repoRoot, "hcm-boundary.geojson"));
 
 EnsureStaticAssetsExist(staticAssets);
-
-app.UseForwardedHeaders();
-app.UseExceptionHandler(errorApp =>
-{
-    errorApp.Run(async context =>
-    {
-        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalExceptionHandler");
-        logger.LogError(exception, "Unhandled request error for {Path}.", context.Request.Path);
-
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/json; charset=utf-8";
-        await context.Response.WriteAsJsonAsync(new { message = "Server error. Please check backend logs." });
-    });
-});
-
-await EnsureDatabaseReadyAsync(app);
+await EnsureDatabaseReadyAsync(app.Services);
 
 app.UseCors(CorsPolicies.OpenRealtime);
 app.UseAuthentication();
-app.Use(async (context, next) =>
-{
-    if (context.User.Identity?.IsAuthenticated != true &&
-        TryReadAuthToken(context.Request, out var token) &&
-        TryValidateAuthToken(token, context.RequestServices.GetRequiredService<IConfiguration>(), out var username))
-    {
-        var dbContext = context.RequestServices.GetRequiredService<IncidentDbContext>();
-        var normalizedUsername = NormalizeUsername(username);
-        var user = await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(item => item.NormalizedUsername == normalizedUsername);
-
-        if (user is not null && !user.IsLocked)
-        {
-            context.User = BuildPrincipal(user);
-        }
-    }
-
-    await next();
-});
 app.UseAuthorization();
 
 app.MapPost("/api/auth/login", async (
     LoginRequest request,
     HttpContext context,
-    IncidentDbContext dbContext,
-    IConfiguration configuration,
-    ILoggerFactory loggerFactory) =>
+    IncidentDbContext dbContext) =>
 {
-    var logger = loggerFactory.CreateLogger("Auth");
-
-    try
+    if (!TryGetDemoUser(request.Username, request.Password, out var user))
     {
-        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
-        {
-            return Results.Json(
-                new { message = "Username and password are required." },
-                statusCode: StatusCodes.Status401Unauthorized);
-        }
-
-        var normalizedUsername = NormalizeUsername(request.Username);
-        var user = await dbContext.Users.FirstOrDefaultAsync(item => item.NormalizedUsername == normalizedUsername);
-
-        if (user is null || !VerifyPassword(request.Password, user.PasswordHash))
-        {
-            await TryWriteAuditLogAsync(
-                dbContext,
-                context,
-                logger,
-                action: AuditActions.LoginFailed,
-                entityType: AuditEntities.Auth,
-                entityId: request.Username.Trim(),
-                summary: "Dang nhap that bai.",
-                detail: $"Tai khoan {request.Username.Trim()} dang nhap that bai.",
-                actorUsername: request.Username.Trim(),
-                actorDisplayName: "Dang nhap that bai",
-                actorRole: "Unknown");
-
-            return Results.Json(
-                new { message = "Invalid username or password." },
-                statusCode: StatusCodes.Status401Unauthorized);
-        }
-
-        if (user.IsLocked)
-        {
-            await TryWriteAuditLogAsync(
-                dbContext,
-                context,
-                logger,
-                action: AuditActions.LoginFailed,
-                entityType: AuditEntities.Auth,
-                entityId: user.Username,
-                summary: "Tai khoan bi khoa.",
-                detail: $"Tai khoan {user.Username} bi tu choi dang nhap vi dang bi khoa.",
-                actorUsername: user.Username,
-                actorDisplayName: user.DisplayName,
-                actorRole: user.Role);
-
-            return Results.Json(
-                new { message = "Account is locked." },
-                statusCode: StatusCodes.Status403Forbidden);
-        }
-
-        var principal = BuildPrincipal(user);
-
-        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-
-        user.LastLoginAt = DateTimeOffset.UtcNow;
-        user.UpdatedAt = DateTimeOffset.UtcNow;
-
         await WriteAuditLogAsync(
             dbContext,
             context,
-            action: AuditActions.LoginSuccess,
+            action: AuditActions.LoginFailed,
             entityType: AuditEntities.Auth,
-            entityId: user.Username,
-            summary: "Dang nhap thanh cong.",
-            detail: $"{user.DisplayName} dang nhap vao he thong voi vai tro {user.Role}.",
-            actorUsername: user.Username,
-            actorDisplayName: user.DisplayName,
-            actorRole: user.Role,
-            saveChanges: false);
+            entityId: request.Username?.Trim() ?? "unknown",
+            summary: "Dang nhap that bai.",
+            detail: $"Tai khoan {request.Username?.Trim() ?? "trong"} dang nhap that bai.",
+            actorUsername: request.Username?.Trim() ?? "anonymous",
+            actorDisplayName: "Dang nhap that bai",
+            actorRole: "Unknown");
 
-        await dbContext.SaveChangesAsync();
-
-        return Results.Ok(new AuthenticatedUserResponse(
-            user.Username,
-            user.DisplayName,
-            user.Role,
-            GetLandingPathForRole(user.Role),
-            CreateAuthToken(user.Username, configuration)));
+        return Results.Unauthorized();
     }
-    catch (Exception ex)
+
+    var claims = new[]
     {
-        logger.LogError(ex, "Login failed because the auth service raised an exception.");
-        return Results.Json(
-            new { message = "Authentication service error. Please check backend logs." },
-            statusCode: StatusCodes.Status500InternalServerError);
-    }
+        new Claim(ClaimTypes.NameIdentifier, user.Username),
+        new Claim(ClaimTypes.Name, user.DisplayName),
+        new Claim(ClaimTypes.Role, user.Role)
+    };
+
+    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    var principal = new ClaimsPrincipal(identity);
+
+    await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+    await WriteAuditLogAsync(
+        dbContext,
+        context,
+        action: AuditActions.LoginSuccess,
+        entityType: AuditEntities.Auth,
+        entityId: user.Username,
+        summary: "Dang nhap thanh cong.",
+        detail: $"{user.DisplayName} dang nhap vao he thong voi vai tro {user.Role}.",
+        actorUsername: user.Username,
+        actorDisplayName: user.DisplayName,
+        actorRole: user.Role);
+
+    return Results.Ok(new AuthenticatedUserResponse(
+        user.Username,
+        user.DisplayName,
+        user.Role,
+        GetLandingPathForRole(user.Role)));
 });
 
 app.MapPost("/api/auth/logout", async (
@@ -306,20 +191,20 @@ app.MapPost("/api/auth/logout", async (
     }
 
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    return Results.Ok(new { message = "Logged out." });
+    return Results.Ok(new { message = "Da dang xuat." });
 });
 
 app.MapGet("/api/auth/me", (ClaimsPrincipal user) =>
 {
     if (user.Identity?.IsAuthenticated != true)
     {
-        return Results.Json(new { message = "Not authenticated." }, statusCode: StatusCodes.Status401Unauthorized);
+        return Results.Unauthorized();
     }
 
     var role = user.FindFirstValue(ClaimTypes.Role);
     if (string.IsNullOrWhiteSpace(role))
     {
-        return Results.Json(new { message = "Not authenticated." }, statusCode: StatusCodes.Status401Unauthorized);
+        return Results.Unauthorized();
     }
 
     return Results.Ok(new AuthenticatedUserResponse(
@@ -329,8 +214,13 @@ app.MapGet("/api/auth/me", (ClaimsPrincipal user) =>
         GetLandingPathForRole(role)));
 });
 
-app.MapGet("/health", (Func<HttpContext, Task<IResult>>)GetHealthAsync).AllowAnonymous();
-app.MapGet("/api/health", (Func<HttpContext, Task<IResult>>)GetHealthAsync).AllowAnonymous();
+app.MapGet("/api/health", (IConfiguration configuration) => Results.Ok(new
+{
+    status = "ok",
+    databaseProvider = ResolveDatabaseProvider(configuration),
+    signalRHub = "/hubs/incidents",
+    timestamp = DateTimeOffset.UtcNow
+}));
 
 app.MapPost("/api/incidents/analyze", async (
     AnalyzeIncidentRequest request,
@@ -352,7 +242,7 @@ app.MapPost("/api/incidents/analyze", async (
         actorRole: GetActorSnapshot(context.User).Role);
 
     return Results.Ok(assessment.ToResponse());
-}).RequireAuthorization(Policies.CanSubmitIncident);
+}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanSubmitIncident);
 
 app.MapGet("/api/incidents", async (
     IncidentDbContext dbContext,
@@ -382,7 +272,7 @@ app.MapGet("/api/incidents", async (
         .ToListAsync();
 
     return Results.Ok(incidents);
-}).RequireAuthorization(Policies.CanViewIncidents);
+}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanViewIncidents);
 
 app.MapGet("/api/incidents/{id:guid}", async (
     Guid id,
@@ -553,7 +443,7 @@ app.MapPost("/api/incidents", async (
         analysis = assessment.ToResponse(),
         incident = payload
     });
-}).RequireAuthorization(Policies.CanSubmitIncident);
+}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanSubmitIncident);
 
 app.MapPatch("/api/incidents/{id:guid}/status", async (
     Guid id,
@@ -717,67 +607,11 @@ static void EnsureStaticAssetsExist(StaticAssetPaths staticAssets)
     }
 }
 
-static async Task EnsureDatabaseReadyAsync(WebApplication app)
+static async Task EnsureDatabaseReadyAsync(IServiceProvider services)
 {
-    await using var scope = app.Services.CreateAsyncScope();
-    var logger = app.Logger;
-    var provider = ResolveDatabaseProvider(app.Configuration, app.Environment);
-
-    try
-    {
-        var dbContext = scope.ServiceProvider.GetRequiredService<IncidentDbContext>();
-        logger.LogInformation("Preparing database. Provider={DatabaseProvider}; Relational={IsRelational}", provider, dbContext.Database.IsRelational());
-
-        if (dbContext.Database.IsRelational())
-        {
-            await dbContext.Database.MigrateAsync();
-        }
-        else
-        {
-            await dbContext.Database.EnsureCreatedAsync();
-        }
-
-        await SeedUsersAsync(dbContext, app.Configuration, logger);
-        logger.LogInformation("Database startup completed successfully. Provider={DatabaseProvider}", provider);
-    }
-    catch (Exception ex)
-    {
-        logger.LogError(ex, "Database startup failed. Provider={DatabaseProvider}; ConnectionStringConfigured={ConnectionStringConfigured}", provider, HasConfiguredConnectionString(app.Configuration, provider));
-    }
-}
-
-static async Task<IResult> GetHealthAsync(HttpContext context)
-{
-    var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
-    var environment = context.RequestServices.GetRequiredService<IHostEnvironment>();
-    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Health");
-    var provider = ResolveDatabaseProvider(configuration, environment);
-    var databaseStatus = "unknown";
-    var databaseMessage = "not checked";
-
-    try
-    {
-        await using var scope = context.RequestServices.CreateAsyncScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<IncidentDbContext>();
-        databaseStatus = await dbContext.Database.CanConnectAsync() ? "ok" : "unavailable";
-        databaseMessage = databaseStatus == "ok" ? "connected" : "cannot connect";
-    }
-    catch (Exception ex)
-    {
-        databaseStatus = "error";
-        databaseMessage = ex.GetType().Name;
-        logger.LogWarning(ex, "Health check database probe failed.");
-    }
-
-    return Results.Ok(new
-    {
-        status = databaseStatus == "ok" ? "ok" : "degraded",
-        database = databaseStatus,
-        databaseProvider = provider,
-        databaseMessage,
-        signalRHub = "/hubs/incidents",
-        timestamp = DateTimeOffset.UtcNow
-    });
+    await using var scope = services.CreateAsyncScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<IncidentDbContext>();
+    await dbContext.Database.EnsureCreatedAsync();
 }
 
 static IQueryable<IncidentRecord> ApplyIncidentFilters(
@@ -849,12 +683,16 @@ static IQueryable<IncidentRecord> ApplyIncidentSort(IQueryable<IncidentRecord> q
         _ => query.OrderByDescending(item => item.CreatedAt)
     };
 }
-static string ResolveDatabaseProvider(IConfiguration configuration, IHostEnvironment environment)
+
+static string ResolveDatabaseProvider(IConfiguration configuration)
 {
-    var envProvider = configuration["POLICE_DATABASE_PROVIDER"]?.Trim().ToLowerInvariant();
-    if (!string.IsNullOrWhiteSpace(envProvider))
+    var configured = configuration["POLICE_DATABASE_PROVIDER"]
+        ?? configuration["DatabaseProvider"];
+
+    configured = configured?.Trim().ToLowerInvariant();
+    if (!string.IsNullOrWhiteSpace(configured))
     {
-        return envProvider;
+        return configured;
     }
 
     if (!string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "Postgres")))
@@ -867,448 +705,18 @@ static string ResolveDatabaseProvider(IConfiguration configuration, IHostEnviron
         return DatabaseProviders.SqlServer;
     }
 
-    if (environment.IsProduction())
-    {
-        return DatabaseProviders.Postgres;
-    }
-
-    var configured = configuration["DatabaseProvider"]?.Trim().ToLowerInvariant();
-    return string.IsNullOrWhiteSpace(configured) ? DatabaseProviders.InMemory : configured;
+    return DatabaseProviders.InMemory;
 }
 
 static string? ResolveConnectionString(IConfiguration configuration, string name)
 {
-    if (string.Equals(name, "Postgres", StringComparison.OrdinalIgnoreCase))
+    var envValue = configuration[$"POLICE_{name.ToUpperInvariant()}_CONNECTION"];
+    if (!string.IsNullOrWhiteSpace(envValue))
     {
-        foreach (var key in new[] { "DATABASE_URL", "POSTGRESQL_ADDON_URI", "POLICE_POSTGRES_CONNECTION" })
-        {
-            var value = configuration[key];
-            if (!string.IsNullOrWhiteSpace(value))
-            {
-                return NormalizePostgresConnectionString(value);
-            }
-        }
-    }
-    else
-    {
-        var envValue = configuration[$"POLICE_{name.ToUpperInvariant()}_CONNECTION"];
-        if (!string.IsNullOrWhiteSpace(envValue))
-        {
-            return envValue.Trim();
-        }
+        return envValue.Trim();
     }
 
-    var configured = configuration.GetConnectionString(name);
-    return string.IsNullOrWhiteSpace(configured)
-        ? null
-        : string.Equals(name, "Postgres", StringComparison.OrdinalIgnoreCase)
-            ? NormalizePostgresConnectionString(configured)
-            : configured.Trim();
-}
-
-static string NormalizePostgresConnectionString(string raw)
-{
-    var value = raw.Trim();
-    if (value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
-        value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
-    {
-        var uri = new Uri(value);
-        var userInfo = uri.UserInfo.Split(':', 2);
-        var builder = new NpgsqlConnectionStringBuilder
-        {
-            Host = uri.Host,
-            Port = uri.IsDefaultPort ? 5432 : uri.Port,
-            Database = uri.AbsolutePath.TrimStart('/'),
-            Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
-            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
-            SslMode = SslMode.Require
-        };
-
-        return builder.ConnectionString;
-    }
-
-    if (value.Contains("Host=", StringComparison.OrdinalIgnoreCase) &&
-        !value.Contains("SSL Mode=", StringComparison.OrdinalIgnoreCase) &&
-        !value.Contains("SslMode=", StringComparison.OrdinalIgnoreCase))
-    {
-        value += ";SSL Mode=Require;Trust Server Certificate=true";
-    }
-
-    return value;
-}
-
-static bool HasConfiguredConnectionString(IConfiguration configuration, string provider)
-{
-    return provider switch
-    {
-        DatabaseProviders.Postgres => !string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "Postgres")),
-        DatabaseProviders.SqlServer => !string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "SqlServer")),
-        DatabaseProviders.InMemory => true,
-        _ => false
-    };
-}
-
-static void ConfigureRenderPort(WebApplicationBuilder builder)
-{
-    var configuredUrls = builder.Configuration["ASPNETCORE_URLS"];
-    var port = builder.Configuration["PORT"];
-
-    if (string.IsNullOrWhiteSpace(configuredUrls) && int.TryParse(port, out var parsedPort) && parsedPort > 0)
-    {
-        builder.WebHost.UseUrls($"http://0.0.0.0:{parsedPort}");
-    }
-}
-
-static IReadOnlyList<string> ResolveCorsOrigins(IConfiguration configuration, IHostEnvironment environment)
-{
-    var origins = new List<string>();
-    var configured = configuration["FRONTEND_URL"];
-
-    if (!string.IsNullOrWhiteSpace(configured))
-    {
-        origins.AddRange(configured
-            .Split(new[] { ',', ';' }, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Select(NormalizeOrigin)
-            .Where(origin => !string.IsNullOrWhiteSpace(origin))!);
-    }
-
-    origins.AddRange(new[]
-    {
-        "https://www.warteam.website",
-        "https://warteam.website"
-    });
-
-    if (!environment.IsProduction())
-    {
-        origins.AddRange(new[]
-        {
-            "http://localhost:5055",
-            "http://127.0.0.1:5055",
-            "http://localhost:5173",
-            "http://127.0.0.1:5173",
-            "http://localhost:5500",
-            "http://127.0.0.1:5500",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000"
-        });
-    }
-
-    return origins.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-}
-
-static string? NormalizeOrigin(string raw)
-{
-    if (!Uri.TryCreate(raw.Trim(), UriKind.Absolute, out var uri))
-    {
-        return null;
-    }
-
-    return uri.IsDefaultPort
-        ? $"{uri.Scheme}://{uri.Host}"
-        : $"{uri.Scheme}://{uri.Host}:{uri.Port}";
-}
-
-static string ResolveStaticRoot(string contentRootPath)
-{
-    var candidates = new[]
-    {
-        contentRootPath,
-        Path.GetFullPath(Path.Combine(contentRootPath, "..")),
-        AppContext.BaseDirectory,
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."))
-    };
-
-    foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
-    {
-        if (File.Exists(Path.Combine(candidate, "index.html")) && Directory.Exists(Path.Combine(candidate, "admin")))
-        {
-            return candidate;
-        }
-    }
-
-    return Path.GetFullPath(Path.Combine(contentRootPath, ".."));
-}
-
-static async Task SeedUsersAsync(IncidentDbContext dbContext, IConfiguration configuration, ILogger logger)
-{
-    var now = DateTimeOffset.UtcNow;
-    var seedUsers = BuildSeedUsers(configuration);
-
-    foreach (var seedUser in seedUsers)
-    {
-        await CreateSeedUserIfMissingAsync(
-            dbContext,
-            seedUser.Username,
-            seedUser.Password,
-            seedUser.Email,
-            seedUser.DisplayName,
-            seedUser.Role,
-            now,
-            logger);
-    }
-}
-
-static IReadOnlyList<SeedUser> BuildSeedUsers(IConfiguration configuration)
-{
-    var adminUsername = string.IsNullOrWhiteSpace(configuration["ADMIN_USERNAME"])
-        ? "admin"
-        : configuration["ADMIN_USERNAME"]!.Trim();
-    var adminPassword = string.IsNullOrWhiteSpace(configuration["ADMIN_PASSWORD"])
-        ? "admin123"
-        : configuration["ADMIN_PASSWORD"]!;
-    var adminEmail = string.IsNullOrWhiteSpace(configuration["ADMIN_EMAIL"])
-        ? "admin@police.local"
-        : configuration["ADMIN_EMAIL"]!.Trim();
-    var adminDisplayName = string.IsNullOrWhiteSpace(configuration["ADMIN_DISPLAY_NAME"])
-        ? "Quan tri vien"
-        : configuration["ADMIN_DISPLAY_NAME"]!.Trim();
-
-    var users = new List<SeedUser>
-    {
-        new(adminUsername, adminPassword, adminEmail, adminDisplayName, AppRoles.Admin)
-    };
-
-    users.AddRange(DefaultSeedUsers.All.Where(user => user.Role != AppRoles.Admin));
-
-    return users;
-}
-
-static async Task CreateSeedUserIfMissingAsync(
-    IncidentDbContext dbContext,
-    string username,
-    string password,
-    string email,
-    string displayName,
-    string role,
-    DateTimeOffset now,
-    ILogger logger)
-{
-    var normalizedUsername = NormalizeUsername(username);
-    var user = await dbContext.Users.FirstOrDefaultAsync(item => item.NormalizedUsername == normalizedUsername);
-
-    if (user is null)
-    {
-        dbContext.Users.Add(new UserRecord
-        {
-            Id = Guid.NewGuid(),
-            Username = username.Trim(),
-            NormalizedUsername = normalizedUsername,
-            PasswordHash = HashPassword(password),
-            Email = email.Trim(),
-            DisplayName = displayName.Trim(),
-            Role = NormalizeRole(role),
-            IsLocked = false,
-            CreatedAt = now,
-            UpdatedAt = now
-        });
-
-        logger.LogInformation("Seeded user {Username} with role {Role}.", username, role);
-        await dbContext.SaveChangesAsync();
-    }
-    else
-    {
-        logger.LogInformation("Seed skipped for user {Username}; username already exists with role {Role}.", username, user.Role);
-    }
-}
-
-static string NormalizeUsername(string username)
-{
-    return username.Trim().ToLowerInvariant();
-}
-
-static string NormalizeRole(string role)
-{
-    return role.Trim() switch
-    {
-        AppRoles.Admin => AppRoles.Admin,
-        AppRoles.User => AppRoles.User,
-        AppRoles.Police => AppRoles.Police,
-        AppRoles.Support => AppRoles.Support,
-        _ => AppRoles.User
-    };
-}
-
-static string HashPassword(string password)
-{
-    const int iterations = 100_000;
-    var salt = RandomNumberGenerator.GetBytes(16);
-    var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, 32);
-    return $"pbkdf2-sha256${iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
-}
-
-static bool VerifyPassword(string password, string storedHash)
-{
-    var parts = storedHash.Split('$');
-    if (parts.Length != 4 || parts[0] != "pbkdf2-sha256" || !int.TryParse(parts[1], out var iterations))
-    {
-        return false;
-    }
-
-    try
-    {
-        var salt = Convert.FromBase64String(parts[2]);
-        var expectedHash = Convert.FromBase64String(parts[3]);
-        var actualHash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, expectedHash.Length);
-        return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
-    }
-    catch (FormatException)
-    {
-        return false;
-    }
-}
-
-static ClaimsPrincipal BuildPrincipal(UserRecord user)
-{
-    var claims = new[]
-    {
-        new Claim(ClaimTypes.NameIdentifier, user.Username),
-        new Claim(ClaimTypes.Name, user.DisplayName),
-        new Claim(ClaimTypes.Email, user.Email),
-        new Claim(ClaimTypes.Role, user.Role)
-    };
-
-    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-    return new ClaimsPrincipal(identity);
-}
-
-static string CreateAuthToken(string username, IConfiguration configuration)
-{
-    var expiresAt = DateTimeOffset.UtcNow.AddHours(8).ToUnixTimeSeconds();
-    var payload = $"{NormalizeUsername(username)}|{expiresAt}";
-    var payloadBytes = Encoding.UTF8.GetBytes(payload);
-    var signature = ComputeTokenSignature(payloadBytes, configuration);
-
-    return $"{Base64UrlEncode(payloadBytes)}.{Base64UrlEncode(signature)}";
-}
-
-static bool TryReadAuthToken(HttpRequest request, out string token)
-{
-    token = string.Empty;
-    var authorization = request.Headers.Authorization.ToString();
-
-    if (authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-    {
-        token = authorization["Bearer ".Length..].Trim();
-        return !string.IsNullOrWhiteSpace(token);
-    }
-
-    if (request.Query.TryGetValue("access_token", out var queryToken) && !string.IsNullOrWhiteSpace(queryToken))
-    {
-        token = queryToken.ToString();
-        return true;
-    }
-
-    return false;
-}
-
-static bool TryValidateAuthToken(string token, IConfiguration configuration, out string username)
-{
-    username = string.Empty;
-    var parts = token.Split('.', 2);
-
-    if (parts.Length != 2 ||
-        !TryBase64UrlDecode(parts[0], out var payloadBytes) ||
-        !TryBase64UrlDecode(parts[1], out var signatureBytes))
-    {
-        return false;
-    }
-
-    var expectedSignature = ComputeTokenSignature(payloadBytes, configuration);
-    if (!CryptographicOperations.FixedTimeEquals(signatureBytes, expectedSignature))
-    {
-        return false;
-    }
-
-    var payload = Encoding.UTF8.GetString(payloadBytes);
-    var payloadParts = payload.Split('|', 2);
-    if (payloadParts.Length != 2 || !long.TryParse(payloadParts[1], out var expiresAt))
-    {
-        return false;
-    }
-
-    if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiresAt)
-    {
-        return false;
-    }
-
-    username = payloadParts[0];
-    return !string.IsNullOrWhiteSpace(username);
-}
-
-static byte[] ComputeTokenSignature(byte[] payloadBytes, IConfiguration configuration)
-{
-    var secret = configuration["AUTH_TOKEN_SECRET"];
-
-    if (string.IsNullOrWhiteSpace(secret))
-    {
-        secret = configuration["ADMIN_PASSWORD"];
-    }
-
-    if (string.IsNullOrWhiteSpace(secret))
-    {
-        secret = "police-smart-hub-production-token-secret";
-    }
-
-    using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-    return hmac.ComputeHash(payloadBytes);
-}
-
-static string Base64UrlEncode(byte[] bytes)
-{
-    return Convert.ToBase64String(bytes)
-        .TrimEnd('=')
-        .Replace('+', '-')
-        .Replace('/', '_');
-}
-
-static bool TryBase64UrlDecode(string value, out byte[] bytes)
-{
-    bytes = [];
-
-    try
-    {
-        var padded = value.Replace('-', '+').Replace('_', '/');
-        padded = padded.PadRight(padded.Length + (4 - padded.Length % 4) % 4, '=');
-        bytes = Convert.FromBase64String(padded);
-        return true;
-    }
-    catch (FormatException)
-    {
-        return false;
-    }
-}
-
-static async Task TryWriteAuditLogAsync(
-    IncidentDbContext dbContext,
-    HttpContext context,
-    ILogger logger,
-    string action,
-    string entityType,
-    string entityId,
-    string summary,
-    string detail,
-    string? actorUsername = null,
-    string? actorDisplayName = null,
-    string? actorRole = null)
-{
-    try
-    {
-        await WriteAuditLogAsync(
-            dbContext,
-            context,
-            action,
-            entityType,
-            entityId,
-            summary,
-            detail,
-            actorUsername,
-            actorDisplayName,
-            actorRole);
-    }
-    catch (Exception ex)
-    {
-        logger.LogWarning(ex, "Failed to write audit log for {Action}.", action);
-    }
+    return configuration.GetConnectionString(name);
 }
 
 static bool TryParseLocation(string raw, out double latitude, out double longitude)
@@ -1330,6 +738,7 @@ static bool TryParseLocation(string raw, out double latitude, out double longitu
 
     return latitude is >= 10.3 and <= 11.1 && longitude is >= 106.4 and <= 107.1;
 }
+
 static string NormalizeLevel(string? level)
 {
     return level?.Trim().ToLowerInvariant() switch
@@ -1356,6 +765,25 @@ static string NormalizeStatus(string? status)
         "da xu ly" => IncidentStatuses.DaXuLy,
         _ => string.IsNullOrWhiteSpace(status) ? IncidentStatuses.MoiTiepNhan : status.Trim()
     };
+}
+
+static bool TryGetDemoUser(string? username, string? password, out DemoUser user)
+{
+    user = default;
+    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+    {
+        return false;
+    }
+
+    var normalizedUsername = username.Trim().ToLowerInvariant();
+    if (!DemoUsers.All.TryGetValue(normalizedUsername, out var candidate) ||
+        !string.Equals(candidate.Password, password, StringComparison.Ordinal))
+    {
+        return false;
+    }
+
+    user = candidate;
+    return true;
 }
 
 static string GetLandingPathForRole(string? role)
@@ -1389,7 +817,7 @@ static ActorSnapshot GetActorSnapshot(ClaimsPrincipal user)
 {
     if (user.Identity?.IsAuthenticated != true)
     {
-        return new ActorSnapshot("anonymous", "Nguoi dung chua xac thuc", "Anonymous");
+        return new ActorSnapshot("demo-user", "Nguoi dung demo", "Anonymous");
     }
 
     return new ActorSnapshot(
@@ -1618,8 +1046,7 @@ internal sealed record AuthenticatedUserResponse(
     string Username,
     string DisplayName,
     string Role,
-    string RedirectPath,
-    string? AccessToken = null);
+    string RedirectPath);
 
 internal sealed record IncidentResponse(
     Guid Id,
@@ -1684,6 +1111,12 @@ internal readonly record struct StaticAssetPaths(
     string SupportFile,
     string BoundaryFile);
 
+internal readonly record struct DemoUser(
+    string Username,
+    string Password,
+    string DisplayName,
+    string Role);
+
 internal readonly record struct ActorSnapshot(
     string Username,
     string DisplayName,
@@ -1733,17 +1166,29 @@ internal static class IncidentMappingExtensions
         auditLog.CreatedAt);
 }
 
-internal sealed record SeedUser(string Username, string Password, string Email, string DisplayName, string Role);
-
-internal static class DefaultSeedUsers
+internal static class EndpointConventionBuilderExtensions
 {
-    public static readonly IReadOnlyList<SeedUser> All =
-    [
-        new("admin", "admin123", "admin@police.local", "Quan tri vien", AppRoles.Admin),
-        new("user", "user123", "user@police.local", "Nguoi dung", AppRoles.User),
-        new("police", "police123", "police@police.local", "Canh sat", AppRoles.Police),
-        new("support", "support123", "support@police.local", "Nhan vien ho tro", AppRoles.Support)
-    ];
+    public static TBuilder ApplyIncidentPolicy<TBuilder>(this TBuilder builder, bool demoOpenAccess, string policy)
+        where TBuilder : IEndpointConventionBuilder
+    {
+        if (!demoOpenAccess)
+        {
+            builder.RequireAuthorization(policy);
+        }
+
+        return builder;
+    }
+}
+
+internal static class DemoUsers
+{
+    public static readonly IReadOnlyDictionary<string, DemoUser> All = new Dictionary<string, DemoUser>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["admin"] = new("admin", "admin123", "Quan tri vien", AppRoles.Admin),
+        ["user"] = new("user", "user123", "Nguoi dung", AppRoles.User),
+        ["police"] = new("police", "police123", "Canh sat", AppRoles.Police),
+        ["support"] = new("support", "support123", "Nhan vien ho tro", AppRoles.Support)
+    };
 }
 
 internal static class AppRoles
