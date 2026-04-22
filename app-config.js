@@ -23,7 +23,7 @@
 
   // Default local .NET backend used by this project.
   // Override with ?apiBase=... when you want another backend.
-  const configuredPublicApiBase = "http://localhost:5055";
+  const configuredPublicApiBase = "http://127.0.0.1:5055";
   const runtimeConfiguredApiBase = getRuntimeConfiguredApiBase();
 
   window.POLICE_API_BASE =
