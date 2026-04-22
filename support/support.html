@@ -718,6 +718,7 @@
       } catch {
       }
 
+      window.APP_CONFIG?.clearAuthToken?.();
       sessionStorage.removeItem("policeRole");
       window.location.href = "/";
     });

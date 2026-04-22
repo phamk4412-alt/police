@@ -1277,7 +1277,10 @@
         }
 
         incidentHubConnection = new signalR.HubConnectionBuilder()
-          .withUrl(apiUrl("/hubs/incidents"), { withCredentials: true })
+          .withUrl(apiUrl("/hubs/incidents"), {
+            withCredentials: true,
+            accessTokenFactory: () => window.APP_CONFIG?.getAuthToken?.() || ""
+          })
           .withAutomaticReconnect()
           .build();
 
@@ -1426,6 +1429,7 @@
         await apiFetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
+      window.APP_CONFIG?.clearAuthToken?.();
       sessionStorage.removeItem("policeRole");
       window.location.href = "/";
     });

@@ -34,7 +34,8 @@
         radial-gradient(circle at top left, rgba(35, 181, 211, 0.18), transparent 28%),
         radial-gradient(circle at bottom right, rgba(72, 149, 239, 0.18), transparent 32%),
         linear-gradient(160deg, var(--bg-1), var(--bg-2));
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       position: relative;
     }
 
@@ -520,6 +521,7 @@
       try {
         const response = await apiFetch("/api/auth/me");
         if (response.status === 401) {
+          window.APP_CONFIG?.clearAuthToken?.();
           return;
         }
 
@@ -528,6 +530,10 @@
         }
 
         const payload = await readPayload(response);
+        if (payload.AccessToken || payload.accessToken) {
+          window.APP_CONFIG?.setAuthToken?.(payload.AccessToken || payload.accessToken);
+        }
+
         if (payload.Role || payload.role) {
           const role = payload.Role || payload.role;
           sessionStorage.setItem("policeRole", roleToStorageValue[role] || role.toLowerCase());
@@ -579,6 +585,8 @@
         }
 
         const payload = await readPayload(response);
+        window.APP_CONFIG?.setAuthToken?.(payload.AccessToken || payload.accessToken || "");
+
         const role = payload.Role || payload.role;
         if (role) {
           sessionStorage.setItem("policeRole", roleToStorageValue[role] || role.toLowerCase());
