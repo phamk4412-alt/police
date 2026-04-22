@@ -1,6 +1,6 @@
 (function () {
-  const isLocalHost = ["localhost", "127.0.0.1"].includes(window.location.hostname);
   const storageKey = "POLICE_PUBLIC_API_BASE";
+  const defaultApiBaseUrl = "https://police-otit.onrender.com";
 
   function normalizeBaseUrl(value) {
     return (value || "").trim().replace(/\/$/, "");
@@ -21,15 +21,36 @@
     }
   }
 
-  // Default local .NET backend used by this project.
-  // In production, use the current origin unless ?apiBase=... is provided.
-  const configuredPublicApiBase = isLocalHost ? "http://127.0.0.1:5055" : "";
-  const runtimeConfiguredApiBase = getRuntimeConfiguredApiBase();
+  const apiBaseUrl = getRuntimeConfiguredApiBase() || defaultApiBaseUrl;
 
-  window.POLICE_API_BASE =
-    runtimeConfiguredApiBase ||
-    configuredPublicApiBase ||
-    (isLocalHost ? "http://localhost:5055" : window.location.origin);
+  function apiUrl(path) {
+    if (!path) {
+      return apiBaseUrl;
+    }
 
+    if (/^https?:\/\//i.test(path)) {
+      return path;
+    }
+
+    return `${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`;
+  }
+
+  function apiFetch(path, options) {
+    return fetch(apiUrl(path), {
+      credentials: "include",
+      ...(options || {})
+    });
+  }
+
+  window.APP_CONFIG = {
+    apiBaseUrl,
+    apiUrl,
+    apiFetch,
+    credentials: "include"
+  };
+
+  window.POLICE_API_BASE = apiBaseUrl;
   window.POLICE_REALTIME_POLL_INTERVAL_MS = 4000;
+  window.apiUrl = apiUrl;
+  window.apiFetch = apiFetch;
 })();

@@ -934,27 +934,22 @@
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await apiFetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
 
         const payload = await response.json();
-        const actualRole = (payload.role || "").toLowerCase();
+        const actualRole = (payload.Role || payload.role || "").toLowerCase();
         sessionStorage.setItem("policeRole", actualRole);
 
         if (actualRole !== expectedRole) {
-          window.location.href = payload.redirectPath || "/";
+          window.location.href = payload.RedirectPath || payload.redirectPath || "/";
           return false;
         }
 
         return true;
       } catch {
-        const storedRole = sessionStorage.getItem("policeRole");
-        if (storedRole === expectedRole) {
-          return true;
-        }
-
         sessionStorage.removeItem("policeRole");
         window.location.href = "/";
         return false;
@@ -1023,7 +1018,7 @@
     const reportHistoryNote = document.getElementById("reportHistoryNote");
     const nearbyDangerList = document.getElementById("nearbyDangerList");
     const nearbyDangerNote = document.getElementById("nearbyDangerNote");
-    const API_BASE = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
+    const API_BASE = (window.APP_CONFIG?.apiBaseUrl || window.POLICE_API_BASE || "https://police-otit.onrender.com").replace(/\/$/, "");
     const TRACKED_INCIDENT_STORAGE_KEY = "POLICE_LAST_TRACKED_INCIDENT_ID";
     const USER_LOCATION_SESSION_KEY = "userLocation";
     let trackedIncidentId = "";
@@ -1084,7 +1079,7 @@
       }
 
       try {
-        const response = await fetch(apiUrl(`/api/incidents/${trackedIncidentId}`));
+        const response = await fetch(apiUrl(`/api/incidents/${trackedIncidentId}`), { credentials: "include" });
         const payload = await readApiPayload(response);
 
         if (!response.ok || !payload || Array.isArray(payload)) {
@@ -1105,7 +1100,7 @@
       }
 
       incidentHubConnection = new signalR.HubConnectionBuilder()
-        .withUrl(apiUrl("/hubs/incidents"), { withCredentials: false })
+        .withUrl(apiUrl("/hubs/incidents"), { withCredentials: true })
         .withAutomaticReconnect()
         .build();
 
@@ -1297,6 +1292,7 @@
       }
 
       const response = await fetch(apiUrl("/api/incidents/analyze"), {
+        credentials: "include",
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -1409,13 +1405,13 @@
 
     async function loadBoundaryGeoJson() {
       const candidates = [
-        "./data/hcm-boundary.geojson",
+        apiUrl("/hcm-boundary.geojson"),
         "../hcm-boundary.geojson"
       ];
 
       for (const path of candidates) {
         try {
-          const response = await fetch(path);
+          const response = await fetch(path, { credentials: "include" });
           if (response.ok) {
             return await response.json();
           }
@@ -1664,7 +1660,7 @@
     function renderNearbyDanger() {
       if (!userLocation) {
         nearbyDangerList.innerHTML = `<div class="sidebar-empty">Chưa có vị trí hiện tại để phân tích khu vực gần bạn.</div>`;
-        nearbyDangerNote.textContent = "Nhấn \"Lấy tọa độ\" để bật marker realtime và xem các vụ việc trong bán kính 1km.";
+        nearbyDangerNote.textContent = "Nhấn "Lấy tọa độ" để bật marker realtime và xem các vụ việc trong bán kính 1km.";
         return;
       }
 
@@ -1799,6 +1795,7 @@
         }
 
         const response = await fetch(apiUrl("/api/incidents"), {
+          credentials: "include",
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -1856,7 +1853,7 @@
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await apiFetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
 
@@ -1905,7 +1902,7 @@
     function renderStatistics() {
       if (state.mapMode !== "crime") {
         statisticsList.innerHTML = "";
-        statisticsNote.textContent = "Chọn chế độ \"Vụ án\" để xem thống kê theo thời gian và bộ lọc loại tội.";
+        statisticsNote.textContent = "Chọn chế độ "Vụ án" để xem thống kê theo thời gian và bộ lọc loại tội.";
         statisticsPanel.classList.add("is-hidden");
         return;
       }
