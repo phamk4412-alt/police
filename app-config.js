@@ -1,27 +1,12 @@
 (function () {
-  const storageKey = "POLICE_PUBLIC_API_BASE";
-  const defaultApiBaseUrl = "https://police-otit.onrender.com";
+  const API_BASE_URL = "https://police-otit.onrender.com";
+  const DEFAULT_TIMEOUT_MS = 15000;
 
   function normalizeBaseUrl(value) {
     return (value || "").trim().replace(/\/$/, "");
   }
 
-  function getRuntimeConfiguredApiBase() {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const queryBase = normalizeBaseUrl(params.get("apiBase"));
-      if (queryBase) {
-        window.localStorage.setItem(storageKey, queryBase);
-        return queryBase;
-      }
-
-      return normalizeBaseUrl(window.localStorage.getItem(storageKey));
-    } catch {
-      return "";
-    }
-  }
-
-  const apiBaseUrl = getRuntimeConfiguredApiBase() || defaultApiBaseUrl;
+  const apiBaseUrl = normalizeBaseUrl(API_BASE_URL);
 
   function apiUrl(path) {
     if (!path) {
@@ -36,9 +21,20 @@
   }
 
   function apiFetch(path, options) {
+    const { timeoutMs = DEFAULT_TIMEOUT_MS, signal, ...requestOptions } = options || {};
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+    if (signal) {
+      signal.addEventListener("abort", () => controller.abort(), { once: true });
+    }
+
     return fetch(apiUrl(path), {
+      ...requestOptions,
       credentials: "include",
-      ...(options || {})
+      signal: controller.signal
+    }).finally(() => {
+      window.clearTimeout(timeoutId);
     });
   }
 

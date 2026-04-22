@@ -82,10 +82,10 @@ If `dotnet ef` is not installed, install the EF tool locally or use the automati
 
 ### Frontend API URL
 
-When the backend serves the frontend on the same Render service, use relative API routes and open:
+The public frontend is configured to call the Render backend through `app-config.js`:
 
 ```text
-https://<your-service>.onrender.com/
+https://police-otit.onrender.com
 ```
 
-If you host the frontend separately, set `FRONTEND_URL` on the backend and point the frontend to the backend URL. This project supports `?apiBase=https://<your-service>.onrender.com` via `app-config.js` for pages that use `POLICE_API_BASE`.
+If you host the frontend separately, set `FRONTEND_URL` on the backend to the frontend origin. Do not point API or SignalR calls at the frontend domain.

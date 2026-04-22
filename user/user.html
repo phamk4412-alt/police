@@ -823,7 +823,7 @@
                 <strong>Trạng thái hiện tại</strong>
                 <span id="latestIncidentStatus">Chưa có dữ liệu realtime.</span>
               </div>
-              <p class="inline-note" id="latestIncidentHint">Nếu frontend và backend khác domain, bạn có thể mở trang với tham số <code>?apiBase=https://domain-backend</code> để lưu cấu hình realtime.</p>
+              <p class="inline-note" id="latestIncidentHint">Kênh realtime sẽ kết nối với máy chủ Render sau khi bạn gửi báo cáo.</p>
             </section>
 
             <section class="panel">
@@ -1124,8 +1124,9 @@
       try {
         await incidentHubConnection.start();
         latestIncidentHint.textContent = "Kênh realtime đang hoạt động. Khi phản hồi từ trung tâm thay đổi, trạng thái sẽ tự nhảy tại đây.";
-      } catch {
+      } catch (error) {
         latestIncidentHint.textContent = "Không kết nối được realtime. Trang vẫn có thể hiển thị trạng thái khi tải lại dữ liệu.";
+        console.warn("Khong ket noi duoc SignalR", error);
       }
     }
 
@@ -1279,16 +1280,7 @@
 
     async function analyzeIncidentDraft(type, description, fallbackLevel) {
       if (!API_BASE) {
-        return {
-          Category: "Phan loai tam thoi",
-          Level: fallbackLevel,
-          UrgencyScore: fallbackLevel === "high" ? 82 : fallbackLevel === "medium" ? 58 : 35,
-          Reason: "Dang su dung phan loai tam thoi tren thiet bi do API chua san sang.",
-          ShouldCallEmergency: fallbackLevel === "high",
-          Recommendation: fallbackLevel === "high"
-            ? "Neu co nguy co truc tiep, hay goi 113 ngay."
-            : "Ban co the bo sung them chi tiet de phan loai chinh xac hon."
-        };
+        throw new Error("Không kết nối được máy chủ.");
       }
 
       const response = await apiFetch("/api/incidents/analyze", {
@@ -1752,46 +1744,19 @@
         return;
       }
 
-      const fallbackLevel = getLevelFromIncidentType(type);
-      let analysis = null;
-
-      try {
-        analysis = await analyzeIncidentDraft(type, description, fallbackLevel);
-      } catch (error) {
-        analysisSummary.textContent = error.message || "Khong the phan tich AI luc nay. He thong se dung phan loai tam thoi.";
-      }
-
-      const level = analysis?.Level || fallbackLevel;
-      const localReport = {
-        type,
-        lat: parsedCoordinates.lat,
-        lng: parsedCoordinates.lng,
-        description,
-        time: new Date().toISOString(),
-        level
-      };
-
-      if (analysis) {
-        analysisSummary.textContent = `${analysis.Category} | ${getDangerLevelLabel(level)} | Diem ${analysis.UrgencyScore}. ${analysis.Recommendation}`;
-      } else {
-        analysisSummary.textContent = `He thong tam xep muc ${getDangerLevelLabel(level)} tu loai vu viec ban da nhap.`;
-      }
-
-      state.reportHistory.unshift(localReport);
-      state.reportHistory = state.reportHistory.slice(0, 20);
-      saveReportHistory();
-      renderReportHistory();
-      latestIncidentTitle.textContent = type;
-      latestIncidentMeta.textContent = `Tọa độ: ${parsedCoordinates.lat.toFixed(6)}, ${parsedCoordinates.lng.toFixed(6)} | Lúc ${formatTimestamp(localReport.time)}`;
-      latestIncidentStatus.textContent = `Trạng thái: Đã lưu cục bộ (${getDangerLevelLabel(level)}${analysis?.Category ? ` - ${analysis.Category}` : ""}).`;
-
       reportButton.disabled = true;
-      reportStatus.textContent = "Đã lưu báo cáo trên thiết bị. Đang thử đồng bộ lên trung tâm nếu API khả dụng...";
+      reportStatus.textContent = "Đang gửi báo cáo tới máy chủ...";
 
       try {
         if (!API_BASE) {
           throw new Error("Không tìm thấy địa chỉ máy chủ tiếp nhận báo cáo.");
         }
+
+        const fallbackLevel = getLevelFromIncidentType(type);
+        const analysis = await analyzeIncidentDraft(type, description, fallbackLevel);
+        const level = analysis?.Level || fallbackLevel;
+
+        analysisSummary.textContent = `${analysis.Category} | ${getDangerLevelLabel(level)} | Diem ${analysis.UrgencyScore}. ${analysis.Recommendation}`;
 
         const response = await apiFetch("/api/incidents", {
           method: "POST",
@@ -1820,9 +1785,29 @@
           analysisSummary.textContent = `${payload.analysis.Category} | ${getDangerLevelLabel(payload.analysis.Level)} | Diem ${payload.analysis.UrgencyScore}. ${payload.analysis.Recommendation}`;
         }
 
-        reportStatus.textContent = `Đã lưu cục bộ và gửi báo cáo "${type}" thành công lên hệ thống. ${payload.analysis?.ShouldCallEmergency ? "He thong danh gia day la muc khan cap cao." : ""}`;
+        const savedIncident = payload.incident || {};
+        const savedAt = savedIncident.CreatedAt || new Date().toISOString();
+        state.reportHistory.unshift({
+          type,
+          lat: savedIncident.Latitude || parsedCoordinates.lat,
+          lng: savedIncident.Longitude || parsedCoordinates.lng,
+          description,
+          time: savedAt,
+          level
+        });
+        state.reportHistory = state.reportHistory.slice(0, 20);
+        saveReportHistory();
+        renderReportHistory();
+
+        latestIncidentTitle.textContent = savedIncident.Title || type;
+        latestIncidentMeta.textContent = `Tọa độ: ${(savedIncident.Latitude || parsedCoordinates.lat).toFixed(6)}, ${(savedIncident.Longitude || parsedCoordinates.lng).toFixed(6)} | Lúc ${formatTimestamp(savedAt)}`;
+        latestIncidentStatus.textContent = `Trạng thái: ${savedIncident.Status || "Đã gửi"} (${getDangerLevelLabel(level)}${payload.analysis?.Category ? ` - ${payload.analysis.Category}` : ""}).`;
+        reportStatus.textContent = `Đã gửi báo cáo "${type}" thành công lên hệ thống. ${payload.analysis?.ShouldCallEmergency ? "He thong danh gia day la muc khan cap cao." : ""}`;
       } catch (error) {
-        reportStatus.textContent = `Báo cáo "${type}" đã được lưu cục bộ thành công. ${error.message || "Đồng bộ lên hệ thống chưa khả dụng."}`;
+        const message = error.name === "AbortError"
+          ? "Không kết nối được máy chủ."
+          : (error.message || "Không thể gửi báo cáo lên máy chủ.");
+        reportStatus.textContent = message;
       } finally {
         reportButton.disabled = false;
         renderNearbyDanger();
