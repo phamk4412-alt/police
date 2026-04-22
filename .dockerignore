@@ -1,0 +1,9 @@
+.git
+.dotnet
+.nuget
+bin
+obj
+**/bin
+**/obj
+*.user
+*.suo

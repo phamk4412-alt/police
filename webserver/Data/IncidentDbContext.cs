@@ -7,9 +7,40 @@ public sealed class IncidentDbContext(DbContextOptions<IncidentDbContext> option
 {
     public DbSet<IncidentRecord> Incidents => Set<IncidentRecord>();
     public DbSet<AuditLogRecord> AuditLogs => Set<AuditLogRecord>();
+    public DbSet<UserRecord> Users => Set<UserRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        var user = modelBuilder.Entity<UserRecord>();
+        user.ToTable("Users");
+        user.HasKey(item => item.Id);
+
+        user.Property(item => item.Username)
+            .HasMaxLength(120)
+            .IsRequired();
+
+        user.Property(item => item.NormalizedUsername)
+            .HasMaxLength(120)
+            .IsRequired();
+
+        user.Property(item => item.PasswordHash)
+            .HasMaxLength(512)
+            .IsRequired();
+
+        user.Property(item => item.Email)
+            .HasMaxLength(256)
+            .IsRequired();
+
+        user.Property(item => item.DisplayName)
+            .HasMaxLength(160)
+            .IsRequired();
+
+        user.Property(item => item.Role)
+            .HasMaxLength(32)
+            .IsRequired();
+
+        user.HasIndex(item => item.NormalizedUsername).IsUnique();
+
         var incident = modelBuilder.Entity<IncidentRecord>();
         incident.ToTable("Incidents");
         incident.HasKey(item => item.Id);

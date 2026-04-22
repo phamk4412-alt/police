@@ -1,16 +1,33 @@
 using System.Globalization;
+using System.Net;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using PoliceWebServer.Data;
 using PoliceWebServer.Hubs;
 using PoliceWebServer.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+
+ConfigureRenderPort(builder);
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+var corsOrigins = ResolveCorsOrigins(builder.Configuration, builder.Environment);
+var useCrossSiteCookies = !string.IsNullOrWhiteSpace(builder.Configuration["FRONTEND_URL"]);
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -21,7 +38,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicies.OpenRealtime, policy =>
         policy
-            .SetIsOriginAllowed(_ => true)
+            .WithOrigins(corsOrigins.ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
@@ -33,7 +50,12 @@ builder.Services
     {
         options.Cookie.Name = "PoliceSmartHub.Auth";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = builder.Environment.IsProduction()
+            ? CookieSecurePolicy.Always
+            : CookieSecurePolicy.SameAsRequest;
+        options.Cookie.SameSite = useCrossSiteCookies
+            ? SameSiteMode.None
+            : SameSiteMode.Lax;
         options.LoginPath = "/";
         options.AccessDeniedPath = "/";
         options.SlidingExpiration = true;
@@ -65,7 +87,7 @@ builder.Services.AddSignalR().AddJsonProtocol(options =>
 
 builder.Services.AddDbContext<IncidentDbContext>(options =>
 {
-    var provider = ResolveDatabaseProvider(builder.Configuration);
+    var provider = ResolveDatabaseProvider(builder.Configuration, builder.Environment);
     var sqlServerConnection = ResolveConnectionString(builder.Configuration, "SqlServer");
     var postgresConnection = ResolveConnectionString(builder.Configuration, "Postgres");
 
@@ -83,13 +105,18 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
         case DatabaseProviders.Postgres:
             if (string.IsNullOrWhiteSpace(postgresConnection))
             {
-                throw new InvalidOperationException("ConnectionStrings:Postgres chua duoc cau hinh.");
+                throw new InvalidOperationException("DATABASE_URL, POSTGRESQL_ADDON_URI, POLICE_POSTGRES_CONNECTION hoac ConnectionStrings:Postgres chua duoc cau hinh.");
             }
 
             options.UseNpgsql(postgresConnection);
             break;
 
         case DatabaseProviders.InMemory:
+            if (builder.Environment.IsProduction())
+            {
+                throw new InvalidOperationException("Production khong duoc dung InMemory khi chua cau hinh ro POLICE_DATABASE_PROVIDER=inmemory.");
+            }
+
             options.UseInMemoryDatabase("PoliceSmartHub");
             break;
 
@@ -99,9 +126,19 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
 });
 
 var app = builder.Build();
-var demoOpenAccess = builder.Configuration.GetValue("DemoOpenAccess", true);
+var startupProvider = ResolveDatabaseProvider(app.Configuration, app.Environment);
+var demoOpenAccess = IsDevelopmentDemoOpenAccess(app.Configuration, app.Environment);
 
-var repoRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, ".."));
+app.Logger.LogInformation(
+    "Starting PoliceWebServer. Environment={Environment}; Urls={Urls}; DatabaseProvider={DatabaseProvider}; ConnectionStringConfigured={ConnectionStringConfigured}; DemoOpenAccess={DemoOpenAccess}; CorsOrigins={CorsOrigins}",
+    app.Environment.EnvironmentName,
+    string.Join(",", app.Urls),
+    startupProvider,
+    HasConfiguredConnectionString(app.Configuration, startupProvider),
+    demoOpenAccess,
+    string.Join(",", corsOrigins));
+
+var repoRoot = ResolveStaticRoot(app.Environment.ContentRootPath);
 var staticAssets = new StaticAssetPaths(
     IndexFile: Path.Combine(repoRoot, "index.html"),
     AdminFile: Path.Combine(repoRoot, "admin", "admin.html"),
@@ -111,7 +148,23 @@ var staticAssets = new StaticAssetPaths(
     BoundaryFile: Path.Combine(repoRoot, "hcm-boundary.geojson"));
 
 EnsureStaticAssetsExist(staticAssets);
-await EnsureDatabaseReadyAsync(app.Services);
+
+app.UseForwardedHeaders();
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("GlobalExceptionHandler");
+        logger.LogError(exception, "Unhandled request error for {Path}.", context.Request.Path);
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        context.Response.ContentType = "application/json; charset=utf-8";
+        await context.Response.WriteAsJsonAsync(new { message = "Server error. Please check backend logs." });
+    });
+});
+
+await EnsureDatabaseReadyAsync(app);
 
 app.UseCors(CorsPolicies.OpenRealtime);
 app.UseAuthentication();
@@ -120,54 +173,107 @@ app.UseAuthorization();
 app.MapPost("/api/auth/login", async (
     LoginRequest request,
     HttpContext context,
-    IncidentDbContext dbContext) =>
+    IncidentDbContext dbContext,
+    ILoggerFactory loggerFactory) =>
 {
-    if (!TryGetDemoUser(request.Username, request.Password, out var user))
+    var logger = loggerFactory.CreateLogger("Auth");
+
+    try
     {
+        if (string.IsNullOrWhiteSpace(request.Username) || string.IsNullOrWhiteSpace(request.Password))
+        {
+            return Results.Json(
+                new { message = "Username and password are required." },
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        var normalizedUsername = NormalizeUsername(request.Username);
+        var user = await dbContext.Users.FirstOrDefaultAsync(item => item.NormalizedUsername == normalizedUsername);
+
+        if (user is null || !VerifyPassword(request.Password, user.PasswordHash))
+        {
+            await TryWriteAuditLogAsync(
+                dbContext,
+                context,
+                logger,
+                action: AuditActions.LoginFailed,
+                entityType: AuditEntities.Auth,
+                entityId: request.Username.Trim(),
+                summary: "Dang nhap that bai.",
+                detail: $"Tai khoan {request.Username.Trim()} dang nhap that bai.",
+                actorUsername: request.Username.Trim(),
+                actorDisplayName: "Dang nhap that bai",
+                actorRole: "Unknown");
+
+            return Results.Json(
+                new { message = "Invalid username or password." },
+                statusCode: StatusCodes.Status401Unauthorized);
+        }
+
+        if (user.IsLocked)
+        {
+            await TryWriteAuditLogAsync(
+                dbContext,
+                context,
+                logger,
+                action: AuditActions.LoginFailed,
+                entityType: AuditEntities.Auth,
+                entityId: user.Username,
+                summary: "Tai khoan bi khoa.",
+                detail: $"Tai khoan {user.Username} bi tu choi dang nhap vi dang bi khoa.",
+                actorUsername: user.Username,
+                actorDisplayName: user.DisplayName,
+                actorRole: user.Role);
+
+            return Results.Json(
+                new { message = "Account is locked." },
+                statusCode: StatusCodes.Status403Forbidden);
+        }
+
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.NameIdentifier, user.Username),
+            new Claim(ClaimTypes.Name, user.DisplayName),
+            new Claim(ClaimTypes.Email, user.Email),
+            new Claim(ClaimTypes.Role, user.Role)
+        };
+
+        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+        var principal = new ClaimsPrincipal(identity);
+
+        await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
+
+        user.LastLoginAt = DateTimeOffset.UtcNow;
+        user.UpdatedAt = DateTimeOffset.UtcNow;
+
         await WriteAuditLogAsync(
             dbContext,
             context,
-            action: AuditActions.LoginFailed,
+            action: AuditActions.LoginSuccess,
             entityType: AuditEntities.Auth,
-            entityId: request.Username?.Trim() ?? "unknown",
-            summary: "Dang nhap that bai.",
-            detail: $"Tai khoan {request.Username?.Trim() ?? "trong"} dang nhap that bai.",
-            actorUsername: request.Username?.Trim() ?? "anonymous",
-            actorDisplayName: "Dang nhap that bai",
-            actorRole: "Unknown");
+            entityId: user.Username,
+            summary: "Dang nhap thanh cong.",
+            detail: $"{user.DisplayName} dang nhap vao he thong voi vai tro {user.Role}.",
+            actorUsername: user.Username,
+            actorDisplayName: user.DisplayName,
+            actorRole: user.Role,
+            saveChanges: false);
 
-        return Results.Unauthorized();
+        await dbContext.SaveChangesAsync();
+
+        return Results.Ok(new AuthenticatedUserResponse(
+            user.Username,
+            user.DisplayName,
+            user.Role,
+            GetLandingPathForRole(user.Role)));
     }
-
-    var claims = new[]
+    catch (Exception ex)
     {
-        new Claim(ClaimTypes.NameIdentifier, user.Username),
-        new Claim(ClaimTypes.Name, user.DisplayName),
-        new Claim(ClaimTypes.Role, user.Role)
-    };
-
-    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-    var principal = new ClaimsPrincipal(identity);
-
-    await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
-
-    await WriteAuditLogAsync(
-        dbContext,
-        context,
-        action: AuditActions.LoginSuccess,
-        entityType: AuditEntities.Auth,
-        entityId: user.Username,
-        summary: "Dang nhap thanh cong.",
-        detail: $"{user.DisplayName} dang nhap vao he thong voi vai tro {user.Role}.",
-        actorUsername: user.Username,
-        actorDisplayName: user.DisplayName,
-        actorRole: user.Role);
-
-    return Results.Ok(new AuthenticatedUserResponse(
-        user.Username,
-        user.DisplayName,
-        user.Role,
-        GetLandingPathForRole(user.Role)));
+        logger.LogError(ex, "Login failed because the auth service raised an exception.");
+        return Results.Json(
+            new { message = "Authentication service error. Please check backend logs." },
+            statusCode: StatusCodes.Status500InternalServerError);
+    }
 });
 
 app.MapPost("/api/auth/logout", async (
@@ -191,20 +297,20 @@ app.MapPost("/api/auth/logout", async (
     }
 
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    return Results.Ok(new { message = "Da dang xuat." });
+    return Results.Ok(new { message = "Logged out." });
 });
 
 app.MapGet("/api/auth/me", (ClaimsPrincipal user) =>
 {
     if (user.Identity?.IsAuthenticated != true)
     {
-        return Results.Unauthorized();
+        return Results.Json(new { message = "Not authenticated." }, statusCode: StatusCodes.Status401Unauthorized);
     }
 
     var role = user.FindFirstValue(ClaimTypes.Role);
     if (string.IsNullOrWhiteSpace(role))
     {
-        return Results.Unauthorized();
+        return Results.Json(new { message = "Not authenticated." }, statusCode: StatusCodes.Status401Unauthorized);
     }
 
     return Results.Ok(new AuthenticatedUserResponse(
@@ -214,13 +320,8 @@ app.MapGet("/api/auth/me", (ClaimsPrincipal user) =>
         GetLandingPathForRole(role)));
 });
 
-app.MapGet("/api/health", (IConfiguration configuration) => Results.Ok(new
-{
-    status = "ok",
-    databaseProvider = ResolveDatabaseProvider(configuration),
-    signalRHub = "/hubs/incidents",
-    timestamp = DateTimeOffset.UtcNow
-}));
+app.MapGet("/health", (Func<HttpContext, Task<IResult>>)GetHealthAsync).AllowAnonymous();
+app.MapGet("/api/health", (Func<HttpContext, Task<IResult>>)GetHealthAsync).AllowAnonymous();
 
 app.MapPost("/api/incidents/analyze", async (
     AnalyzeIncidentRequest request,
@@ -607,11 +708,67 @@ static void EnsureStaticAssetsExist(StaticAssetPaths staticAssets)
     }
 }
 
-static async Task EnsureDatabaseReadyAsync(IServiceProvider services)
+static async Task EnsureDatabaseReadyAsync(WebApplication app)
 {
-    await using var scope = services.CreateAsyncScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<IncidentDbContext>();
-    await dbContext.Database.EnsureCreatedAsync();
+    await using var scope = app.Services.CreateAsyncScope();
+    var logger = app.Logger;
+    var provider = ResolveDatabaseProvider(app.Configuration, app.Environment);
+
+    try
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<IncidentDbContext>();
+        logger.LogInformation("Preparing database. Provider={DatabaseProvider}; Relational={IsRelational}", provider, dbContext.Database.IsRelational());
+
+        if (dbContext.Database.IsRelational())
+        {
+            await dbContext.Database.MigrateAsync();
+        }
+        else
+        {
+            await dbContext.Database.EnsureCreatedAsync();
+        }
+
+        await SeedUsersAsync(dbContext, app.Configuration, app.Environment, logger);
+        logger.LogInformation("Database startup completed successfully. Provider={DatabaseProvider}", provider);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database startup failed. Provider={DatabaseProvider}; ConnectionStringConfigured={ConnectionStringConfigured}", provider, HasConfiguredConnectionString(app.Configuration, provider));
+    }
+}
+
+static async Task<IResult> GetHealthAsync(HttpContext context)
+{
+    var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
+    var environment = context.RequestServices.GetRequiredService<IHostEnvironment>();
+    var logger = context.RequestServices.GetRequiredService<ILoggerFactory>().CreateLogger("Health");
+    var provider = ResolveDatabaseProvider(configuration, environment);
+    var databaseStatus = "unknown";
+    var databaseMessage = "not checked";
+
+    try
+    {
+        await using var scope = context.RequestServices.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<IncidentDbContext>();
+        databaseStatus = await dbContext.Database.CanConnectAsync() ? "ok" : "unavailable";
+        databaseMessage = databaseStatus == "ok" ? "connected" : "cannot connect";
+    }
+    catch (Exception ex)
+    {
+        databaseStatus = "error";
+        databaseMessage = ex.GetType().Name;
+        logger.LogWarning(ex, "Health check database probe failed.");
+    }
+
+    return Results.Ok(new
+    {
+        status = databaseStatus == "ok" ? "ok" : "degraded",
+        database = databaseStatus,
+        databaseProvider = provider,
+        databaseMessage,
+        signalRHub = "/hubs/incidents",
+        timestamp = DateTimeOffset.UtcNow
+    });
 }
 
 static IQueryable<IncidentRecord> ApplyIncidentFilters(
@@ -683,16 +840,12 @@ static IQueryable<IncidentRecord> ApplyIncidentSort(IQueryable<IncidentRecord> q
         _ => query.OrderByDescending(item => item.CreatedAt)
     };
 }
-
-static string ResolveDatabaseProvider(IConfiguration configuration)
+static string ResolveDatabaseProvider(IConfiguration configuration, IHostEnvironment environment)
 {
-    var configured = configuration["POLICE_DATABASE_PROVIDER"]
-        ?? configuration["DatabaseProvider"];
-
-    configured = configured?.Trim().ToLowerInvariant();
-    if (!string.IsNullOrWhiteSpace(configured))
+    var envProvider = configuration["POLICE_DATABASE_PROVIDER"]?.Trim().ToLowerInvariant();
+    if (!string.IsNullOrWhiteSpace(envProvider))
     {
-        return configured;
+        return envProvider;
     }
 
     if (!string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "Postgres")))
@@ -705,18 +858,339 @@ static string ResolveDatabaseProvider(IConfiguration configuration)
         return DatabaseProviders.SqlServer;
     }
 
-    return DatabaseProviders.InMemory;
+    if (environment.IsProduction())
+    {
+        return DatabaseProviders.Postgres;
+    }
+
+    var configured = configuration["DatabaseProvider"]?.Trim().ToLowerInvariant();
+    return string.IsNullOrWhiteSpace(configured) ? DatabaseProviders.InMemory : configured;
 }
 
 static string? ResolveConnectionString(IConfiguration configuration, string name)
 {
-    var envValue = configuration[$"POLICE_{name.ToUpperInvariant()}_CONNECTION"];
-    if (!string.IsNullOrWhiteSpace(envValue))
+    if (string.Equals(name, "Postgres", StringComparison.OrdinalIgnoreCase))
     {
-        return envValue.Trim();
+        foreach (var key in new[] { "DATABASE_URL", "POSTGRESQL_ADDON_URI", "POLICE_POSTGRES_CONNECTION" })
+        {
+            var value = configuration[key];
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return NormalizePostgresConnectionString(value);
+            }
+        }
+    }
+    else
+    {
+        var envValue = configuration[$"POLICE_{name.ToUpperInvariant()}_CONNECTION"];
+        if (!string.IsNullOrWhiteSpace(envValue))
+        {
+            return envValue.Trim();
+        }
     }
 
-    return configuration.GetConnectionString(name);
+    var configured = configuration.GetConnectionString(name);
+    return string.IsNullOrWhiteSpace(configured)
+        ? null
+        : string.Equals(name, "Postgres", StringComparison.OrdinalIgnoreCase)
+            ? NormalizePostgresConnectionString(configured)
+            : configured.Trim();
+}
+
+static string NormalizePostgresConnectionString(string raw)
+{
+    var value = raw.Trim();
+    if (value.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) ||
+        value.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
+    {
+        var uri = new Uri(value);
+        var userInfo = uri.UserInfo.Split(':', 2);
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.IsDefaultPort ? 5432 : uri.Port,
+            Database = uri.AbsolutePath.TrimStart('/'),
+            Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
+            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+            SslMode = SslMode.Require
+        };
+
+        return builder.ConnectionString;
+    }
+
+    if (value.Contains("Host=", StringComparison.OrdinalIgnoreCase) &&
+        !value.Contains("SSL Mode=", StringComparison.OrdinalIgnoreCase) &&
+        !value.Contains("SslMode=", StringComparison.OrdinalIgnoreCase))
+    {
+        value += ";SSL Mode=Require;Trust Server Certificate=true";
+    }
+
+    return value;
+}
+
+static bool HasConfiguredConnectionString(IConfiguration configuration, string provider)
+{
+    return provider switch
+    {
+        DatabaseProviders.Postgres => !string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "Postgres")),
+        DatabaseProviders.SqlServer => !string.IsNullOrWhiteSpace(ResolveConnectionString(configuration, "SqlServer")),
+        DatabaseProviders.InMemory => true,
+        _ => false
+    };
+}
+
+static void ConfigureRenderPort(WebApplicationBuilder builder)
+{
+    var configuredUrls = builder.Configuration["ASPNETCORE_URLS"];
+    var port = builder.Configuration["PORT"];
+
+    if (string.IsNullOrWhiteSpace(configuredUrls) && int.TryParse(port, out var parsedPort) && parsedPort > 0)
+    {
+        builder.WebHost.UseUrls($"http://0.0.0.0:{parsedPort}");
+    }
+}
+
+static IReadOnlyList<string> ResolveCorsOrigins(IConfiguration configuration, IHostEnvironment environment)
+{
+    var origins = new List<string>();
+    var configured = configuration["FRONTEND_URL"];
+
+    if (!string.IsNullOrWhiteSpace(configured))
+    {
+        origins.AddRange(configured
+            .Split(new[] { ',', ';' }, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Select(NormalizeOrigin)
+            .Where(origin => !string.IsNullOrWhiteSpace(origin))!);
+    }
+
+    if (!environment.IsProduction())
+    {
+        origins.AddRange(new[]
+        {
+            "http://localhost:5055",
+            "http://127.0.0.1:5055",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000"
+        });
+    }
+
+    if (origins.Count == 0)
+    {
+        origins.Add("http://localhost:5055");
+    }
+
+    return origins.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+}
+
+static string? NormalizeOrigin(string raw)
+{
+    if (!Uri.TryCreate(raw.Trim(), UriKind.Absolute, out var uri))
+    {
+        return null;
+    }
+
+    return uri.IsDefaultPort
+        ? $"{uri.Scheme}://{uri.Host}"
+        : $"{uri.Scheme}://{uri.Host}:{uri.Port}";
+}
+
+static string ResolveStaticRoot(string contentRootPath)
+{
+    var candidates = new[]
+    {
+        contentRootPath,
+        Path.GetFullPath(Path.Combine(contentRootPath, "..")),
+        AppContext.BaseDirectory,
+        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."))
+    };
+
+    foreach (var candidate in candidates.Distinct(StringComparer.OrdinalIgnoreCase))
+    {
+        if (File.Exists(Path.Combine(candidate, "index.html")) && Directory.Exists(Path.Combine(candidate, "admin")))
+        {
+            return candidate;
+        }
+    }
+
+    return Path.GetFullPath(Path.Combine(contentRootPath, ".."));
+}
+
+static bool IsDevelopmentDemoOpenAccess(IConfiguration configuration, IHostEnvironment environment)
+{
+    return !environment.IsProduction() && configuration.GetValue("DemoOpenAccess", environment.IsDevelopment());
+}
+
+static async Task SeedUsersAsync(IncidentDbContext dbContext, IConfiguration configuration, IHostEnvironment environment, ILogger logger)
+{
+    var now = DateTimeOffset.UtcNow;
+    var adminUsername = configuration["ADMIN_USERNAME"];
+    var adminPassword = configuration["ADMIN_PASSWORD"];
+    var adminEmail = configuration["ADMIN_EMAIL"];
+    var adminDisplayName = configuration["ADMIN_DISPLAY_NAME"];
+
+    if (!string.IsNullOrWhiteSpace(adminPassword))
+    {
+        await UpsertSeedUserAsync(
+            dbContext,
+            adminUsername ?? "admin",
+            adminPassword,
+            adminEmail ?? "admin@police.local",
+            adminDisplayName ?? "Quan tri vien",
+            AppRoles.Admin,
+            now,
+            logger);
+    }
+    else if (environment.IsProduction())
+    {
+        logger.LogWarning("ADMIN_PASSWORD is not configured. No production admin user was seeded.");
+    }
+
+    if (!environment.IsProduction() && IsDevelopmentDemoOpenAccess(configuration, environment))
+    {
+        foreach (var demoUser in DemoUsers.All.Values)
+        {
+            await UpsertSeedUserAsync(
+                dbContext,
+                demoUser.Username,
+                demoUser.Password,
+                $"{demoUser.Username}@police.local",
+                demoUser.DisplayName,
+                demoUser.Role,
+                now,
+                logger);
+        }
+    }
+}
+
+static async Task UpsertSeedUserAsync(
+    IncidentDbContext dbContext,
+    string username,
+    string password,
+    string email,
+    string displayName,
+    string role,
+    DateTimeOffset now,
+    ILogger logger)
+{
+    var normalizedUsername = NormalizeUsername(username);
+    var user = await dbContext.Users.FirstOrDefaultAsync(item => item.NormalizedUsername == normalizedUsername);
+
+    if (user is null)
+    {
+        dbContext.Users.Add(new UserRecord
+        {
+            Id = Guid.NewGuid(),
+            Username = username.Trim(),
+            NormalizedUsername = normalizedUsername,
+            PasswordHash = HashPassword(password),
+            Email = email.Trim(),
+            DisplayName = displayName.Trim(),
+            Role = NormalizeRole(role),
+            IsLocked = false,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
+
+        logger.LogInformation("Seeded user {Username} with role {Role}.", username, role);
+    }
+    else
+    {
+        user.Email = email.Trim();
+        user.DisplayName = displayName.Trim();
+        user.Role = NormalizeRole(role);
+        user.IsLocked = false;
+        user.UpdatedAt = now;
+
+        if (!string.IsNullOrWhiteSpace(password))
+        {
+            user.PasswordHash = HashPassword(password);
+        }
+    }
+
+    await dbContext.SaveChangesAsync();
+}
+
+static string NormalizeUsername(string username)
+{
+    return username.Trim().ToLowerInvariant();
+}
+
+static string NormalizeRole(string role)
+{
+    return role.Trim() switch
+    {
+        AppRoles.Admin => AppRoles.Admin,
+        AppRoles.User => AppRoles.User,
+        AppRoles.Police => AppRoles.Police,
+        AppRoles.Support => AppRoles.Support,
+        _ => AppRoles.User
+    };
+}
+
+static string HashPassword(string password)
+{
+    const int iterations = 100_000;
+    var salt = RandomNumberGenerator.GetBytes(16);
+    var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, 32);
+    return $"pbkdf2-sha256${iterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+}
+
+static bool VerifyPassword(string password, string storedHash)
+{
+    var parts = storedHash.Split('$');
+    if (parts.Length != 4 || parts[0] != "pbkdf2-sha256" || !int.TryParse(parts[1], out var iterations))
+    {
+        return false;
+    }
+
+    try
+    {
+        var salt = Convert.FromBase64String(parts[2]);
+        var expectedHash = Convert.FromBase64String(parts[3]);
+        var actualHash = Rfc2898DeriveBytes.Pbkdf2(password, salt, iterations, HashAlgorithmName.SHA256, expectedHash.Length);
+        return CryptographicOperations.FixedTimeEquals(actualHash, expectedHash);
+    }
+    catch (FormatException)
+    {
+        return false;
+    }
+}
+
+static async Task TryWriteAuditLogAsync(
+    IncidentDbContext dbContext,
+    HttpContext context,
+    ILogger logger,
+    string action,
+    string entityType,
+    string entityId,
+    string summary,
+    string detail,
+    string? actorUsername = null,
+    string? actorDisplayName = null,
+    string? actorRole = null)
+{
+    try
+    {
+        await WriteAuditLogAsync(
+            dbContext,
+            context,
+            action,
+            entityType,
+            entityId,
+            summary,
+            detail,
+            actorUsername,
+            actorDisplayName,
+            actorRole);
+    }
+    catch (Exception ex)
+    {
+        logger.LogWarning(ex, "Failed to write audit log for {Action}.", action);
+    }
 }
 
 static bool TryParseLocation(string raw, out double latitude, out double longitude)
@@ -738,7 +1212,6 @@ static bool TryParseLocation(string raw, out double latitude, out double longitu
 
     return latitude is >= 10.3 and <= 11.1 && longitude is >= 106.4 and <= 107.1;
 }
-
 static string NormalizeLevel(string? level)
 {
     return level?.Trim().ToLowerInvariant() switch
@@ -765,25 +1238,6 @@ static string NormalizeStatus(string? status)
         "da xu ly" => IncidentStatuses.DaXuLy,
         _ => string.IsNullOrWhiteSpace(status) ? IncidentStatuses.MoiTiepNhan : status.Trim()
     };
-}
-
-static bool TryGetDemoUser(string? username, string? password, out DemoUser user)
-{
-    user = default;
-    if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
-    {
-        return false;
-    }
-
-    var normalizedUsername = username.Trim().ToLowerInvariant();
-    if (!DemoUsers.All.TryGetValue(normalizedUsername, out var candidate) ||
-        !string.Equals(candidate.Password, password, StringComparison.Ordinal))
-    {
-        return false;
-    }
-
-    user = candidate;
-    return true;
 }
 
 static string GetLandingPathForRole(string? role)
