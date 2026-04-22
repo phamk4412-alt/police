@@ -675,30 +675,26 @@
     </main>
   </div>
 
+  <script src="../app-config.js"></script>
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await apiFetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
 
         const payload = await response.json();
-        const actualRole = (payload.role || "").toLowerCase();
+        const actualRole = (payload.Role || payload.role || "").toLowerCase();
         sessionStorage.setItem("policeRole", actualRole);
 
         if (actualRole !== expectedRole) {
-          window.location.href = payload.redirectPath || "/";
+          window.location.href = payload.RedirectPath || payload.redirectPath || "/";
           return false;
         }
 
         return true;
       } catch {
-        const storedRole = sessionStorage.getItem("policeRole");
-        if (storedRole === expectedRole) {
-          return true;
-        }
-
         sessionStorage.removeItem("policeRole");
         window.location.href = "/";
         return false;
@@ -772,7 +768,7 @@
 
     async function loadReports() {
       const query = buildQueryString();
-      const response = await fetch(`/api/incidents${query ? `?${query}` : ""}`);
+      const response = await apiFetch(`/api/incidents${query ? `?${query}` : ""}`);
       const payload = await readApiPayload(response);
 
       if (!response.ok) {
@@ -783,7 +779,7 @@
     }
 
     async function loadAuditLogs() {
-      const response = await fetch("/api/audit-logs?limit=12");
+      const response = await apiFetch("/api/audit-logs?limit=12");
       const payload = await readApiPayload(response);
 
       if (!response.ok) {
@@ -922,7 +918,7 @@
 
     document.getElementById("exportButton").addEventListener("click", () => {
       const query = buildQueryString();
-      window.location.href = `/api/incidents/export${query ? `?${query}` : ""}`;
+      window.location.href = apiUrl(`/api/incidents/export${query ? `?${query}` : ""}`);
     });
 
     document.getElementById("publishButton").addEventListener("click", () => {
@@ -934,7 +930,7 @@
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await apiFetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
 
