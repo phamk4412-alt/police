@@ -166,12 +166,31 @@ await EnsureDatabaseReadyAsync(app);
 
 app.UseCors(CorsPolicies.OpenRealtime);
 app.UseAuthentication();
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated != true &&
+        TryReadAuthToken(context.Request, out var token) &&
+        TryValidateAuthToken(token, context.RequestServices.GetRequiredService<IConfiguration>(), out var username))
+    {
+        var dbContext = context.RequestServices.GetRequiredService<IncidentDbContext>();
+        var normalizedUsername = NormalizeUsername(username);
+        var user = await dbContext.Users.AsNoTracking().FirstOrDefaultAsync(item => item.NormalizedUsername == normalizedUsername);
+
+        if (user is not null && !user.IsLocked)
+        {
+            context.User = BuildPrincipal(user);
+        }
+    }
+
+    await next();
+});
 app.UseAuthorization();
 
 app.MapPost("/api/auth/login", async (
     LoginRequest request,
     HttpContext context,
     IncidentDbContext dbContext,
+    IConfiguration configuration,
     ILoggerFactory loggerFactory) =>
 {
     var logger = loggerFactory.CreateLogger("Auth");
@@ -228,16 +247,7 @@ app.MapPost("/api/auth/login", async (
                 statusCode: StatusCodes.Status403Forbidden);
         }
 
-        var claims = new[]
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Username),
-            new Claim(ClaimTypes.Name, user.DisplayName),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
-        };
-
-        var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-        var principal = new ClaimsPrincipal(identity);
+        var principal = BuildPrincipal(user);
 
         await context.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal);
 
@@ -263,7 +273,8 @@ app.MapPost("/api/auth/login", async (
             user.Username,
             user.DisplayName,
             user.Role,
-            GetLandingPathForRole(user.Role)));
+            GetLandingPathForRole(user.Role),
+            CreateAuthToken(user.Username, configuration)));
     }
     catch (Exception ex)
     {
@@ -1146,6 +1157,127 @@ static bool VerifyPassword(string password, string storedHash)
     }
 }
 
+static ClaimsPrincipal BuildPrincipal(UserRecord user)
+{
+    var claims = new[]
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Username),
+        new Claim(ClaimTypes.Name, user.DisplayName),
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Role, user.Role)
+    };
+
+    var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+    return new ClaimsPrincipal(identity);
+}
+
+static string CreateAuthToken(string username, IConfiguration configuration)
+{
+    var expiresAt = DateTimeOffset.UtcNow.AddHours(8).ToUnixTimeSeconds();
+    var payload = $"{NormalizeUsername(username)}|{expiresAt}";
+    var payloadBytes = Encoding.UTF8.GetBytes(payload);
+    var signature = ComputeTokenSignature(payloadBytes, configuration);
+
+    return $"{Base64UrlEncode(payloadBytes)}.{Base64UrlEncode(signature)}";
+}
+
+static bool TryReadAuthToken(HttpRequest request, out string token)
+{
+    token = string.Empty;
+    var authorization = request.Headers.Authorization.ToString();
+
+    if (authorization.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+    {
+        token = authorization["Bearer ".Length..].Trim();
+        return !string.IsNullOrWhiteSpace(token);
+    }
+
+    if (request.Query.TryGetValue("access_token", out var queryToken) && !string.IsNullOrWhiteSpace(queryToken))
+    {
+        token = queryToken.ToString();
+        return true;
+    }
+
+    return false;
+}
+
+static bool TryValidateAuthToken(string token, IConfiguration configuration, out string username)
+{
+    username = string.Empty;
+    var parts = token.Split('.', 2);
+
+    if (parts.Length != 2 ||
+        !TryBase64UrlDecode(parts[0], out var payloadBytes) ||
+        !TryBase64UrlDecode(parts[1], out var signatureBytes))
+    {
+        return false;
+    }
+
+    var expectedSignature = ComputeTokenSignature(payloadBytes, configuration);
+    if (!CryptographicOperations.FixedTimeEquals(signatureBytes, expectedSignature))
+    {
+        return false;
+    }
+
+    var payload = Encoding.UTF8.GetString(payloadBytes);
+    var payloadParts = payload.Split('|', 2);
+    if (payloadParts.Length != 2 || !long.TryParse(payloadParts[1], out var expiresAt))
+    {
+        return false;
+    }
+
+    if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() > expiresAt)
+    {
+        return false;
+    }
+
+    username = payloadParts[0];
+    return !string.IsNullOrWhiteSpace(username);
+}
+
+static byte[] ComputeTokenSignature(byte[] payloadBytes, IConfiguration configuration)
+{
+    var secret = configuration["AUTH_TOKEN_SECRET"];
+
+    if (string.IsNullOrWhiteSpace(secret))
+    {
+        secret = configuration["ADMIN_PASSWORD"];
+    }
+
+    if (string.IsNullOrWhiteSpace(secret))
+    {
+        secret = "police-smart-hub-production-token-secret";
+    }
+
+    using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
+    return hmac.ComputeHash(payloadBytes);
+}
+
+static string Base64UrlEncode(byte[] bytes)
+{
+    return Convert.ToBase64String(bytes)
+        .TrimEnd('=')
+        .Replace('+', '-')
+        .Replace('/', '_');
+}
+
+static bool TryBase64UrlDecode(string value, out byte[] bytes)
+{
+    bytes = [];
+
+    try
+    {
+        var padded = value.Replace('-', '+').Replace('_', '/');
+        padded = padded.PadRight(padded.Length + (4 - padded.Length % 4) % 4, '=');
+        bytes = Convert.FromBase64String(padded);
+        return true;
+    }
+    catch (FormatException)
+    {
+        return false;
+    }
+}
+
 static async Task TryWriteAuditLogAsync(
     IncidentDbContext dbContext,
     HttpContext context,
@@ -1486,7 +1618,8 @@ internal sealed record AuthenticatedUserResponse(
     string Username,
     string DisplayName,
     string Role,
-    string RedirectPath);
+    string RedirectPath,
+    string? AccessToken = null);
 
 internal sealed record IncidentResponse(
     Guid Id,
