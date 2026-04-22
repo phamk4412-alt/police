@@ -34,8 +34,7 @@
         radial-gradient(circle at top left, rgba(35, 181, 211, 0.18), transparent 28%),
         radial-gradient(circle at bottom right, rgba(72, 149, 239, 0.18), transparent 32%),
         linear-gradient(160deg, var(--bg-1), var(--bg-2));
-      overflow-x: hidden;
-      overflow-y: auto;
+      overflow: hidden;
       position: relative;
     }
 
@@ -470,6 +469,7 @@
 
         <div class="actions">
           <button type="submit">Đăng nhập</button>
+          <button class="ghost" type="button" id="fillAdmin">Điền tài khoản mẫu</button>
         </div>
 
         <p id="status" class="status" aria-live="polite"></p>
@@ -480,10 +480,31 @@
         <span class="trust-pill">Role routing</span>
         <span class="trust-pill">Realtime ready</span>
       </div>
+
+      <div class="account-box">
+        <h3>Tài khoản mẫu</h3>
+        <ul>
+          <li><code>admin / admin123</code> → Admin</li>
+          <li><code>user / user123</code> → Người dùng</li>
+          <li><code>police / police123</code> → Cảnh sát</li>
+          <li><code>support / support123</code> → Nhân viên hỗ trợ</li>
+        </ul>
+      </div>
+
+      <div class="login-note">
+        Quick access mode still works in demo presentations if the backend is unavailable, so the handoff experience remains smooth.
+      </div>
     </section>
   </main>
-  <script src="app-config.js"></script>
+
   <script>
+    const demoAccounts = {
+      admin: { password: "admin123", role: "Admin", redirectPath: "./admin/admin.html" },
+      user: { password: "user123", role: "User", redirectPath: "./user/user.html" },
+      police: { password: "police123", role: "Police", redirectPath: "./police/police.html" },
+      support: { password: "support123", role: "Support", redirectPath: "./support/support.html" }
+    };
+
     const roleToStorageValue = {
       Admin: "admin",
       User: "user",
@@ -493,18 +514,11 @@
 
     const form = document.getElementById("loginForm");
     const statusNode = document.getElementById("status");
+    const fillAdminButton = document.getElementById("fillAdmin");
 
     function setStatus(message, type) {
       statusNode.textContent = message;
       statusNode.className = `status ${type}`.trim();
-    }
-
-    function toFrontendPath(path) {
-      if (!path) {
-        return "/";
-      }
-
-      return path.startsWith("/") ? `.${path}` : path;
     }
 
     async function readPayload(response) {
@@ -514,37 +528,28 @@
       }
 
       const text = await response.text();
-      return { message: text, rawText: text };
+      return { rawText: text };
     }
 
     async function redirectIfAuthenticated() {
       try {
-        const response = await apiFetch("/api/auth/me");
-        if (response.status === 401) {
-          window.APP_CONFIG?.clearAuthToken?.();
-          return;
-        }
-
+        const response = await fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
 
         const payload = await readPayload(response);
-        if (payload.AccessToken || payload.accessToken) {
-          window.APP_CONFIG?.setAuthToken?.(payload.AccessToken || payload.accessToken);
+        if (payload.role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
         }
-
-        if (payload.Role || payload.role) {
-          const role = payload.Role || payload.role;
-          sessionStorage.setItem("policeRole", roleToStorageValue[role] || role.toLowerCase());
-        }
-
-        const redirectPath = payload.RedirectPath || payload.redirectPath;
-        if (redirectPath) {
-          window.location.replace(toFrontendPath(redirectPath));
+        if (payload.redirectPath) {
+          window.location.replace(payload.redirectPath);
         }
       } catch {
-        setStatus("Không kết nối được máy chủ. Vui lòng thử lại sau.", "error");
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole && demoAccounts[storedRole]) {
+          window.location.replace(demoAccounts[storedRole].redirectPath);
+        }
       }
     }
 
@@ -561,7 +566,7 @@
 
       setStatus("Đang xác thực tài khoản...", "");
       try {
-        const response = await apiFetch("/api/auth/login", {
+        const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -574,29 +579,36 @@
           return;
         }
 
-        if (response.status === 403) {
-          setStatus("Tài khoản đang bị khóa.", "error");
-          return;
-        }
-
         if (!response.ok) {
-          const payload = await readPayload(response);
-          throw new Error(payload.message || `Auth API returned ${response.status}`);
+          throw new Error(`Auth API returned ${response.status}`);
         }
 
         const payload = await readPayload(response);
-        window.APP_CONFIG?.setAuthToken?.(payload.AccessToken || payload.accessToken || "");
-
-        const role = payload.Role || payload.role;
-        if (role) {
-          sessionStorage.setItem("policeRole", roleToStorageValue[role] || role.toLowerCase());
+        if (payload.role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
         }
 
         setStatus("Đăng nhập thành công, đang chuyển trang...", "success");
-        window.location.href = toFrontendPath(payload.RedirectPath || payload.redirectPath || "/");
+        window.location.href = payload.redirectPath || "/";
       } catch {
-        setStatus("Không kết nối được máy chủ.", "error");
+        const normalizedUsername = username.toLowerCase();
+        const demoAccount = demoAccounts[normalizedUsername];
+
+        if (!demoAccount || demoAccount.password !== password) {
+          setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
+          return;
+        }
+
+        sessionStorage.setItem("policeRole", roleToStorageValue[demoAccount.role] || normalizedUsername);
+        setStatus("Không có API, đang vào chế độ demo tĩnh...", "success");
+        window.location.href = demoAccount.redirectPath;
       }
+    });
+
+    fillAdminButton.addEventListener("click", () => {
+      form.username.value = "admin";
+      form.password.value = "admin123";
+      setStatus("", "");
     });
 
     redirectIfAuthenticated();
