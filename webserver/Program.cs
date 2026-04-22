@@ -27,7 +27,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var corsOrigins = ResolveCorsOrigins(builder.Configuration, builder.Environment);
-var useCrossSiteCookies = !string.IsNullOrWhiteSpace(builder.Configuration["FRONTEND_URL"]);
+var useCrossSiteCookies = builder.Environment.IsProduction() || !string.IsNullOrWhiteSpace(builder.Configuration["FRONTEND_URL"]);
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -127,15 +127,13 @@ builder.Services.AddDbContext<IncidentDbContext>(options =>
 
 var app = builder.Build();
 var startupProvider = ResolveDatabaseProvider(app.Configuration, app.Environment);
-var demoOpenAccess = IsDevelopmentDemoOpenAccess(app.Configuration, app.Environment);
 
 app.Logger.LogInformation(
-    "Starting PoliceWebServer. Environment={Environment}; Urls={Urls}; DatabaseProvider={DatabaseProvider}; ConnectionStringConfigured={ConnectionStringConfigured}; DemoOpenAccess={DemoOpenAccess}; CorsOrigins={CorsOrigins}",
+    "Starting PoliceWebServer. Environment={Environment}; Urls={Urls}; DatabaseProvider={DatabaseProvider}; ConnectionStringConfigured={ConnectionStringConfigured}; CorsOrigins={CorsOrigins}",
     app.Environment.EnvironmentName,
     string.Join(",", app.Urls),
     startupProvider,
     HasConfiguredConnectionString(app.Configuration, startupProvider),
-    demoOpenAccess,
     string.Join(",", corsOrigins));
 
 var repoRoot = ResolveStaticRoot(app.Environment.ContentRootPath);
@@ -343,7 +341,7 @@ app.MapPost("/api/incidents/analyze", async (
         actorRole: GetActorSnapshot(context.User).Role);
 
     return Results.Ok(assessment.ToResponse());
-}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanSubmitIncident);
+}).RequireAuthorization(Policies.CanSubmitIncident);
 
 app.MapGet("/api/incidents", async (
     IncidentDbContext dbContext,
@@ -373,7 +371,7 @@ app.MapGet("/api/incidents", async (
         .ToListAsync();
 
     return Results.Ok(incidents);
-}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanViewIncidents);
+}).RequireAuthorization(Policies.CanViewIncidents);
 
 app.MapGet("/api/incidents/{id:guid}", async (
     Guid id,
@@ -544,7 +542,7 @@ app.MapPost("/api/incidents", async (
         analysis = assessment.ToResponse(),
         incident = payload
     });
-}).ApplyIncidentPolicy(demoOpenAccess, Policies.CanSubmitIncident);
+}).RequireAuthorization(Policies.CanSubmitIncident);
 
 app.MapPatch("/api/incidents/{id:guid}/status", async (
     Guid id,
@@ -728,7 +726,7 @@ static async Task EnsureDatabaseReadyAsync(WebApplication app)
             await dbContext.Database.EnsureCreatedAsync();
         }
 
-        await SeedUsersAsync(dbContext, app.Configuration, app.Environment, logger);
+        await SeedUsersAsync(dbContext, app.Configuration, logger);
         logger.LogInformation("Database startup completed successfully. Provider={DatabaseProvider}", provider);
     }
     catch (Exception ex)
@@ -963,6 +961,12 @@ static IReadOnlyList<string> ResolveCorsOrigins(IConfiguration configuration, IH
             .Where(origin => !string.IsNullOrWhiteSpace(origin))!);
     }
 
+    origins.AddRange(new[]
+    {
+        "https://www.warteam.website",
+        "https://warteam.website"
+    });
+
     if (!environment.IsProduction())
     {
         origins.AddRange(new[]
@@ -976,11 +980,6 @@ static IReadOnlyList<string> ResolveCorsOrigins(IConfiguration configuration, IH
             "http://localhost:3000",
             "http://127.0.0.1:3000"
         });
-    }
-
-    if (origins.Count == 0)
-    {
-        origins.Add("http://localhost:5055");
     }
 
     return origins.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
@@ -1019,54 +1018,51 @@ static string ResolveStaticRoot(string contentRootPath)
     return Path.GetFullPath(Path.Combine(contentRootPath, ".."));
 }
 
-static bool IsDevelopmentDemoOpenAccess(IConfiguration configuration, IHostEnvironment environment)
-{
-    return !environment.IsProduction() && configuration.GetValue("DemoOpenAccess", environment.IsDevelopment());
-}
-
-static async Task SeedUsersAsync(IncidentDbContext dbContext, IConfiguration configuration, IHostEnvironment environment, ILogger logger)
+static async Task SeedUsersAsync(IncidentDbContext dbContext, IConfiguration configuration, ILogger logger)
 {
     var now = DateTimeOffset.UtcNow;
-    var adminUsername = configuration["ADMIN_USERNAME"];
-    var adminPassword = configuration["ADMIN_PASSWORD"];
-    var adminEmail = configuration["ADMIN_EMAIL"];
-    var adminDisplayName = configuration["ADMIN_DISPLAY_NAME"];
+    var seedUsers = BuildSeedUsers(configuration);
 
-    if (!string.IsNullOrWhiteSpace(adminPassword))
+    foreach (var seedUser in seedUsers)
     {
-        await UpsertSeedUserAsync(
+        await CreateSeedUserIfMissingAsync(
             dbContext,
-            adminUsername ?? "admin",
-            adminPassword,
-            adminEmail ?? "admin@police.local",
-            adminDisplayName ?? "Quan tri vien",
-            AppRoles.Admin,
+            seedUser.Username,
+            seedUser.Password,
+            seedUser.Email,
+            seedUser.DisplayName,
+            seedUser.Role,
             now,
             logger);
     }
-    else if (environment.IsProduction())
-    {
-        logger.LogWarning("ADMIN_PASSWORD is not configured. No production admin user was seeded.");
-    }
-
-    if (!environment.IsProduction() && IsDevelopmentDemoOpenAccess(configuration, environment))
-    {
-        foreach (var demoUser in DemoUsers.All.Values)
-        {
-            await UpsertSeedUserAsync(
-                dbContext,
-                demoUser.Username,
-                demoUser.Password,
-                $"{demoUser.Username}@police.local",
-                demoUser.DisplayName,
-                demoUser.Role,
-                now,
-                logger);
-        }
-    }
 }
 
-static async Task UpsertSeedUserAsync(
+static IReadOnlyList<SeedUser> BuildSeedUsers(IConfiguration configuration)
+{
+    var adminUsername = string.IsNullOrWhiteSpace(configuration["ADMIN_USERNAME"])
+        ? "admin"
+        : configuration["ADMIN_USERNAME"]!.Trim();
+    var adminPassword = string.IsNullOrWhiteSpace(configuration["ADMIN_PASSWORD"])
+        ? "admin123"
+        : configuration["ADMIN_PASSWORD"]!;
+    var adminEmail = string.IsNullOrWhiteSpace(configuration["ADMIN_EMAIL"])
+        ? "admin@police.local"
+        : configuration["ADMIN_EMAIL"]!.Trim();
+    var adminDisplayName = string.IsNullOrWhiteSpace(configuration["ADMIN_DISPLAY_NAME"])
+        ? "Quan tri vien"
+        : configuration["ADMIN_DISPLAY_NAME"]!.Trim();
+
+    var users = new List<SeedUser>
+    {
+        new(adminUsername, adminPassword, adminEmail, adminDisplayName, AppRoles.Admin)
+    };
+
+    users.AddRange(DefaultSeedUsers.All.Where(user => user.Role != AppRoles.Admin));
+
+    return users;
+}
+
+static async Task CreateSeedUserIfMissingAsync(
     IncidentDbContext dbContext,
     string username,
     string password,
@@ -1096,22 +1092,12 @@ static async Task UpsertSeedUserAsync(
         });
 
         logger.LogInformation("Seeded user {Username} with role {Role}.", username, role);
+        await dbContext.SaveChangesAsync();
     }
     else
     {
-        user.Email = email.Trim();
-        user.DisplayName = displayName.Trim();
-        user.Role = NormalizeRole(role);
-        user.IsLocked = false;
-        user.UpdatedAt = now;
-
-        if (!string.IsNullOrWhiteSpace(password))
-        {
-            user.PasswordHash = HashPassword(password);
-        }
+        logger.LogInformation("Seed skipped for user {Username}; username already exists with role {Role}.", username, user.Role);
     }
-
-    await dbContext.SaveChangesAsync();
 }
 
 static string NormalizeUsername(string username)
@@ -1271,7 +1257,7 @@ static ActorSnapshot GetActorSnapshot(ClaimsPrincipal user)
 {
     if (user.Identity?.IsAuthenticated != true)
     {
-        return new ActorSnapshot("demo-user", "Nguoi dung demo", "Anonymous");
+        return new ActorSnapshot("anonymous", "Nguoi dung chua xac thuc", "Anonymous");
     }
 
     return new ActorSnapshot(
@@ -1565,12 +1551,6 @@ internal readonly record struct StaticAssetPaths(
     string SupportFile,
     string BoundaryFile);
 
-internal readonly record struct DemoUser(
-    string Username,
-    string Password,
-    string DisplayName,
-    string Role);
-
 internal readonly record struct ActorSnapshot(
     string Username,
     string DisplayName,
@@ -1620,29 +1600,17 @@ internal static class IncidentMappingExtensions
         auditLog.CreatedAt);
 }
 
-internal static class EndpointConventionBuilderExtensions
-{
-    public static TBuilder ApplyIncidentPolicy<TBuilder>(this TBuilder builder, bool demoOpenAccess, string policy)
-        where TBuilder : IEndpointConventionBuilder
-    {
-        if (!demoOpenAccess)
-        {
-            builder.RequireAuthorization(policy);
-        }
+internal sealed record SeedUser(string Username, string Password, string Email, string DisplayName, string Role);
 
-        return builder;
-    }
-}
-
-internal static class DemoUsers
+internal static class DefaultSeedUsers
 {
-    public static readonly IReadOnlyDictionary<string, DemoUser> All = new Dictionary<string, DemoUser>(StringComparer.OrdinalIgnoreCase)
-    {
-        ["admin"] = new("admin", "admin123", "Quan tri vien", AppRoles.Admin),
-        ["user"] = new("user", "user123", "Nguoi dung", AppRoles.User),
-        ["police"] = new("police", "police123", "Canh sat", AppRoles.Police),
-        ["support"] = new("support", "support123", "Nhan vien ho tro", AppRoles.Support)
-    };
+    public static readonly IReadOnlyList<SeedUser> All =
+    [
+        new("admin", "admin123", "admin@police.local", "Quan tri vien", AppRoles.Admin),
+        new("user", "user123", "user@police.local", "Nguoi dung", AppRoles.User),
+        new("police", "police123", "police@police.local", "Canh sat", AppRoles.Police),
+        new("support", "support123", "support@police.local", "Nhan vien ho tro", AppRoles.Support)
+    ];
 }
 
 internal static class AppRoles
