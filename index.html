@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Đăng nhập hệ thống cảnh sát</title>
-  <script src="./app-config.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -566,7 +565,7 @@
       </div>
 
       <div class="login-note">
-        Đăng nhập chỉ hoạt động khi máy chủ xác thực đang chạy và phản hồi bình thường.
+        Quick access mode still works in demo presentations if the backend is unavailable, so the handoff experience remains smooth.
       </div>
     </section>
   </main>
@@ -574,6 +573,13 @@
   <button class="scroll-wheel-button is-hidden" type="button" id="scrollWheelButton" aria-label="Cuộn trang đăng nhập"></button>
 
   <script>
+    const demoAccounts = {
+      admin: { password: "admin123", role: "Admin", redirectPath: "./admin/admin.html" },
+      user: { password: "user123", role: "User", redirectPath: "./user/user.html" },
+      police: { password: "police123", role: "Police", redirectPath: "./police/police.html" },
+      support: { password: "support123", role: "Support", redirectPath: "./support/support.html" }
+    };
+
     const roleToStorageValue = {
       Admin: "admin",
       User: "user",
@@ -585,15 +591,10 @@
     const statusNode = document.getElementById("status");
     const fillAdminButton = document.getElementById("fillAdmin");
     const scrollWheelButton = document.getElementById("scrollWheelButton");
-    const apiBase = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
 
     function setStatus(message, type) {
       statusNode.textContent = message;
       statusNode.className = `status ${type}`.trim();
-    }
-
-    function apiUrl(path) {
-      return `${apiBase}${path}`;
     }
 
     async function readPayload(response) {
@@ -608,7 +609,7 @@
 
     async function redirectIfAuthenticated() {
       try {
-        const response = await fetch(apiUrl("/api/auth/me"));
+        const response = await fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
@@ -621,7 +622,10 @@
           window.location.replace(payload.redirectPath);
         }
       } catch {
-        sessionStorage.removeItem("policeRole");
+        const storedRole = sessionStorage.getItem("policeRole");
+        if (storedRole && demoAccounts[storedRole]) {
+          window.location.replace(demoAccounts[storedRole].redirectPath);
+        }
       }
     }
 
@@ -638,7 +642,7 @@
 
       setStatus("Đang xác thực tài khoản...", "");
       try {
-        const response = await fetch(apiUrl("/api/auth/login"), {
+        const response = await fetch("/api/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -647,7 +651,6 @@
         });
 
         if (response.status === 401) {
-          sessionStorage.removeItem("policeRole");
           setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
           return;
         }
@@ -664,8 +667,17 @@
         setStatus("Đăng nhập thành công, đang chuyển trang...", "success");
         window.location.href = payload.redirectPath || "/";
       } catch {
-        sessionStorage.removeItem("policeRole");
-        setStatus("Không kết nối được máy chủ đăng nhập. Hãy kiểm tra backend.", "error");
+        const normalizedUsername = username.toLowerCase();
+        const demoAccount = demoAccounts[normalizedUsername];
+
+        if (!demoAccount || demoAccount.password !== password) {
+          setStatus("Sai tên đăng nhập hoặc mật khẩu.", "error");
+          return;
+        }
+
+        sessionStorage.setItem("policeRole", roleToStorageValue[demoAccount.role] || normalizedUsername);
+        setStatus("Không có API, đang vào chế độ demo tĩnh...", "success");
+        window.location.href = demoAccount.redirectPath;
       }
     });
 

@@ -104,7 +104,6 @@ var demoOpenAccess = builder.Configuration.GetValue("DemoOpenAccess", true);
 var repoRoot = Path.GetFullPath(Path.Combine(app.Environment.ContentRootPath, ".."));
 var staticAssets = new StaticAssetPaths(
     IndexFile: Path.Combine(repoRoot, "index.html"),
-    AppConfigFile: Path.Combine(repoRoot, "app-config.js"),
     AdminFile: Path.Combine(repoRoot, "admin", "admin.html"),
     UserFile: Path.Combine(repoRoot, "user", "user.html"),
     PoliceFile: Path.Combine(repoRoot, "police", "police.html"),
@@ -517,7 +516,6 @@ app.MapPatch("/api/incidents/{id:guid}/status", async (
 
 MapPage(app, "/", staticAssets.IndexFile);
 MapPage(app, "/index.html", staticAssets.IndexFile);
-app.MapGet("/app-config.js", () => Results.File(staticAssets.AppConfigFile, "application/javascript; charset=utf-8"));
 MapProtectedPage(app, "/admin", staticAssets.AdminFile, Policies.AdminOnly);
 MapProtectedPage(app, "/admin/admin.html", staticAssets.AdminFile, Policies.AdminOnly);
 MapProtectedPage(app, "/user", staticAssets.UserFile, Policies.UserOnly);
@@ -593,7 +591,6 @@ static void EnsureStaticAssetsExist(StaticAssetPaths staticAssets)
     var requiredFiles = new[]
     {
         staticAssets.IndexFile,
-        staticAssets.AppConfigFile,
         staticAssets.AdminFile,
         staticAssets.UserFile,
         staticAssets.PoliceFile,
@@ -1108,7 +1105,6 @@ internal sealed record IncidentProfile(
 
 internal readonly record struct StaticAssetPaths(
     string IndexFile,
-    string AppConfigFile,
     string AdminFile,
     string UserFile,
     string PoliceFile,

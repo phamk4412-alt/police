@@ -948,9 +948,6 @@
     let hasInitializedReports = false;
     let currentReports = [];
     let incidentHubConnection;
-    let isRealtimeConnected = false;
-    let isUsingFallbackReports = false;
-    let hasShownFallbackNotice = false;
 
     function apiUrl(path) {
       return `${apiBase}${path}`;
@@ -1141,20 +1138,6 @@
       }
     }
 
-    function activateFallbackReports(message) {
-      if (!isUsingFallbackReports) {
-        currentReports = fallbackReports.slice();
-        seenReportIds = new Set(currentReports.map((report) => report.Id));
-        rerenderLiveReports();
-        isUsingFallbackReports = true;
-      }
-
-      if (!hasShownFallbackNotice) {
-        showLiveAlert(message || "Không kết nối được máy chủ. Đang hiển thị dữ liệu demo.");
-        hasShownFallbackNotice = true;
-      }
-    }
-
     function initMap() {
       if (typeof mapboxgl === "undefined") {
         return;
@@ -1237,8 +1220,10 @@
       async function refreshLiveReports() {
         try {
           if (!hasUsableApiBase()) {
-            activateFallbackReports("Không tìm thấy máy chủ dữ liệu. Đang hiển thị dữ liệu demo.");
-            hasInitializedReports = true;
+            if (!hasInitializedReports) {
+              hasInitializedReports = true;
+              showLiveAlert("Không tìm thấy máy chủ dữ liệu. Hãy cấu hình configuredPublicApiBase trong app-config.js nếu frontend và backend khác domain.");
+            }
             return;
           }
 
@@ -1255,8 +1240,6 @@
           sortReports(currentReports);
           currentReports.forEach((report) => seenReportIds.add(report.Id));
           renderLiveReports(currentReports);
-          isUsingFallbackReports = false;
-          hasShownFallbackNotice = false;
 
           if (!hasInitializedReports) {
             hasInitializedReports = true;
@@ -1281,7 +1264,7 @@
             }
           }
         } catch (error) {
-          activateFallbackReports(error.message || "Không tải được dữ liệu vụ việc từ máy chủ.");
+          showLiveAlert(error.message || "Không tải được dữ liệu vụ việc.");
           console.error("Khong tai duoc vu viec moi", error);
         }
       }
@@ -1290,12 +1273,11 @@
 
       async function connectIncidentHub() {
         if (!hasUsableApiBase()) {
-          activateFallbackReports("Không tìm thấy kênh realtime. Đang hiển thị dữ liệu demo.");
           return;
         }
 
         if (typeof signalR === "undefined") {
-          activateFallbackReports("SignalR client chưa được tải. Đang hiển thị dữ liệu demo.");
+          showLiveAlert("SignalR client chua duoc tai.");
           return;
         }
 
@@ -1313,18 +1295,15 @@
         });
 
         incidentHubConnection.onreconnecting(() => {
-          isRealtimeConnected = false;
-          showLiveAlert("Đang kết nối lại kênh realtime...");
+          showLiveAlert("Dang ket noi lai kenh realtime...");
         });
 
         incidentHubConnection.onreconnected(async () => {
-          isRealtimeConnected = true;
-          showLiveAlert("Đã kết nối lại realtime.");
+          showLiveAlert("Da ket noi lai realtime.");
           await refreshLiveReports();
         });
 
         incidentHubConnection.onclose((error) => {
-          isRealtimeConnected = false;
           if (error) {
             console.error("Mat ket noi SignalR", error);
           }
@@ -1332,10 +1311,8 @@
 
         try {
           await incidentHubConnection.start();
-          isRealtimeConnected = true;
         } catch (error) {
-          isRealtimeConnected = false;
-          activateFallbackReports("Không thể kết nối realtime. Đang hiển thị dữ liệu demo.");
+          showLiveAlert("Không thể kết nối realtime. Hãy kiểm tra địa chỉ API và server.");
           console.error("Khong ket noi duoc SignalR", error);
         }
       }
@@ -1382,23 +1359,6 @@
         time: "08:20",
         status: "Đã tiếp nhận"
       };
-
-      const fallbackReports = incidents.map((incident, index) => ({
-        Id: `demo-${index + 1}`,
-        Source: "user",
-        Level: incident.level,
-        Title: incident.title,
-        Detail: incident.detail,
-        Category: "Dữ liệu demo",
-        TimeLabel: incident.time || "--:--",
-        District: "TP.HCM",
-        Status: incident.status || "Đang cập nhật",
-        UrgencyScore: incident.level === "high" ? 92 : incident.level === "medium" ? 65 : 34,
-        ClassificationReason: "Frontend đang chạy fallback vì chưa kết nối được backend.",
-        Latitude: incident.coords[1],
-        Longitude: incident.coords[0],
-        CreatedAt: new Date(Date.now() - index * 60000).toISOString()
-      }));
 
       incidents.length = 0;
 
@@ -1521,10 +1481,10 @@
     updateClock();
     initMap();
     refreshTimer = window.setInterval(() => {
-      if (!isRealtimeConnected && typeof window.forceRefreshIncidents === "function") {
+      if (typeof window.forceRefreshIncidents === "function") {
         window.forceRefreshIncidents();
       }
-    }, window.POLICE_REALTIME_POLL_INTERVAL_MS || 12000);
+    }, window.POLICE_REALTIME_POLL_INTERVAL_MS || 4000);
     setInterval(updateClock, 1000);
   </script>
 </body>

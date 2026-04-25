@@ -6,15 +6,6 @@
     return (value || "").trim().replace(/\/$/, "");
   }
 
-  function isLoopbackUrl(value) {
-    try {
-      const url = new URL(value);
-      return ["localhost", "127.0.0.1"].includes(url.hostname);
-    } catch {
-      return false;
-    }
-  }
-
   function getRuntimeConfiguredApiBase() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -24,23 +15,15 @@
         return queryBase;
       }
 
-      const storedBase = normalizeBaseUrl(window.localStorage.getItem(storageKey));
-      if (!isLocalHost && isLoopbackUrl(storedBase)) {
-        window.localStorage.removeItem(storageKey);
-        return "";
-      }
-
-      return storedBase;
+      return normalizeBaseUrl(window.localStorage.getItem(storageKey));
     } catch {
       return "";
     }
   }
 
-  // Keep localhost for local development only.
-  // Production frontend on a custom domain can point to the Vercel API domain here.
-  const configuredPublicApiBase = isLocalHost
-    ? "http://127.0.0.1:5055"
-    : "https://police-git-main-phamk4412-alts-projects.vercel.app";
+  // Default local .NET backend used by this project.
+  // Override with ?apiBase=... when you want another backend.
+  const configuredPublicApiBase = "http://127.0.0.1:5055";
   const runtimeConfiguredApiBase = getRuntimeConfiguredApiBase();
 
   window.POLICE_API_BASE =
