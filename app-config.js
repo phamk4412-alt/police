@@ -37,8 +37,10 @@
   }
 
   // Keep localhost for local development only.
-  // On deployed domains, default back to the current origin unless overridden.
-  const configuredPublicApiBase = isLocalHost ? "http://127.0.0.1:5055" : "";
+  // Production frontend on a custom domain can point to the Vercel API domain here.
+  const configuredPublicApiBase = isLocalHost
+    ? "http://127.0.0.1:5055"
+    : "https://police-git-main-phamk4412-alts-projects.vercel.app";
   const runtimeConfiguredApiBase = getRuntimeConfiguredApiBase();
 
   window.POLICE_API_BASE =
