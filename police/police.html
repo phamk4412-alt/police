@@ -948,6 +948,7 @@
     let hasInitializedReports = false;
     let currentReports = [];
     let incidentHubConnection;
+    let isRealtimeConnected = false;
 
     function apiUrl(path) {
       return `${apiBase}${path}`;
@@ -1295,15 +1296,18 @@
         });
 
         incidentHubConnection.onreconnecting(() => {
+          isRealtimeConnected = false;
           showLiveAlert("Dang ket noi lai kenh realtime...");
         });
 
         incidentHubConnection.onreconnected(async () => {
+          isRealtimeConnected = true;
           showLiveAlert("Da ket noi lai realtime.");
           await refreshLiveReports();
         });
 
         incidentHubConnection.onclose((error) => {
+          isRealtimeConnected = false;
           if (error) {
             console.error("Mat ket noi SignalR", error);
           }
@@ -1311,7 +1315,9 @@
 
         try {
           await incidentHubConnection.start();
+          isRealtimeConnected = true;
         } catch (error) {
+          isRealtimeConnected = false;
           showLiveAlert("Không thể kết nối realtime. Hãy kiểm tra địa chỉ API và server.");
           console.error("Khong ket noi duoc SignalR", error);
         }
@@ -1481,10 +1487,10 @@
     updateClock();
     initMap();
     refreshTimer = window.setInterval(() => {
-      if (typeof window.forceRefreshIncidents === "function") {
+      if (!isRealtimeConnected && typeof window.forceRefreshIncidents === "function") {
         window.forceRefreshIncidents();
       }
-    }, window.POLICE_REALTIME_POLL_INTERVAL_MS || 4000);
+    }, window.POLICE_REALTIME_POLL_INTERVAL_MS || 12000);
     setInterval(updateClock, 1000);
   </script>
 </body>
