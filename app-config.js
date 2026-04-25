@@ -6,6 +6,15 @@
     return (value || "").trim().replace(/\/$/, "");
   }
 
+  function isLoopbackUrl(value) {
+    try {
+      const url = new URL(value);
+      return ["localhost", "127.0.0.1"].includes(url.hostname);
+    } catch {
+      return false;
+    }
+  }
+
   function getRuntimeConfiguredApiBase() {
     try {
       const params = new URLSearchParams(window.location.search);
@@ -15,15 +24,21 @@
         return queryBase;
       }
 
-      return normalizeBaseUrl(window.localStorage.getItem(storageKey));
+      const storedBase = normalizeBaseUrl(window.localStorage.getItem(storageKey));
+      if (!isLocalHost && isLoopbackUrl(storedBase)) {
+        window.localStorage.removeItem(storageKey);
+        return "";
+      }
+
+      return storedBase;
     } catch {
       return "";
     }
   }
 
-  // Default local .NET backend used by this project.
-  // Override with ?apiBase=... when you want another backend.
-  const configuredPublicApiBase = "http://127.0.0.1:5055";
+  // Keep localhost for local development only.
+  // On deployed domains, default back to the current origin unless overridden.
+  const configuredPublicApiBase = isLocalHost ? "http://127.0.0.1:5055" : "";
   const runtimeConfiguredApiBase = getRuntimeConfiguredApiBase();
 
   window.POLICE_API_BASE =
