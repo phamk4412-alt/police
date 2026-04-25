@@ -34,7 +34,8 @@
         radial-gradient(circle at top left, rgba(35, 181, 211, 0.18), transparent 28%),
         radial-gradient(circle at bottom right, rgba(72, 149, 239, 0.18), transparent 32%),
         linear-gradient(160deg, var(--bg-1), var(--bg-2));
-      overflow: hidden;
+      overflow-x: hidden;
+      overflow-y: auto;
       position: relative;
     }
 
@@ -359,6 +360,66 @@
       font-size: 0.93rem;
     }
 
+    .scroll-wheel-button {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      z-index: 4;
+      width: 48px;
+      min-width: 48px;
+      height: 64px;
+      min-height: 64px;
+      padding: 0;
+      border: 1px solid rgba(140, 180, 255, 0.28);
+      border-radius: 999px;
+      background: rgba(7, 17, 34, 0.78);
+      box-shadow: 0 18px 34px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(14px);
+      transform: translateX(-50%);
+      transition: opacity 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .scroll-wheel-button:hover {
+      border-color: rgba(126, 215, 230, 0.52);
+      transform: translateX(-50%) translateY(-3px);
+    }
+
+    .scroll-wheel-button::before {
+      content: "";
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      width: 4px;
+      height: 12px;
+      border-radius: 999px;
+      background: #b6eff7;
+      transform: translateX(-50%);
+      animation: wheelPulse 1.25s ease-in-out infinite;
+    }
+
+    .scroll-wheel-button::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 11px;
+      width: 10px;
+      height: 10px;
+      border-right: 2px solid #b6eff7;
+      border-bottom: 2px solid #b6eff7;
+      transform: translateX(-50%) rotate(45deg);
+      transition: transform 0.2s ease;
+    }
+
+    .scroll-wheel-button.is-at-bottom::after {
+      transform: translateX(-50%) rotate(225deg);
+    }
+
+    .scroll-wheel-button.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateX(-50%) translateY(10px);
+    }
+
     .account-box h3 {
       margin-bottom: 12px;
       font-size: 1rem;
@@ -389,6 +450,18 @@
 
       50% {
         transform: translate3d(18px, 22px, 0) scale(1.06);
+      }
+    }
+
+    @keyframes wheelPulse {
+      0%, 100% {
+        opacity: 0.45;
+        transform: translateX(-50%) translateY(0);
+      }
+
+      50% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(8px);
       }
     }
 
@@ -497,6 +570,8 @@
     </section>
   </main>
 
+  <button class="scroll-wheel-button is-hidden" type="button" id="scrollWheelButton" aria-label="Cuộn trang đăng nhập"></button>
+
   <script>
     const demoAccounts = {
       admin: { password: "admin123", role: "Admin", redirectPath: "./admin/admin.html" },
@@ -515,6 +590,7 @@
     const form = document.getElementById("loginForm");
     const statusNode = document.getElementById("status");
     const fillAdminButton = document.getElementById("fillAdmin");
+    const scrollWheelButton = document.getElementById("scrollWheelButton");
 
     function setStatus(message, type) {
       statusNode.textContent = message;
@@ -611,9 +687,39 @@
       setStatus("", "");
     });
 
+    function refreshScrollWheelButton() {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const isScrollable = scrollableHeight > 8;
+      const isAtBottom = window.scrollY >= scrollableHeight - 8;
+
+      scrollWheelButton.classList.toggle("is-hidden", !isScrollable);
+      scrollWheelButton.classList.toggle("is-at-bottom", isAtBottom);
+      scrollWheelButton.setAttribute("aria-label", isAtBottom ? "Cuộn lên đầu trang đăng nhập" : "Cuộn xuống form đăng nhập");
+    }
+
+    scrollWheelButton.addEventListener("click", () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const isAtBottom = window.scrollY >= scrollableHeight - 8;
+      const loginCard = document.querySelector(".login-card");
+
+      if (isAtBottom) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+
+      window.scrollTo({
+        top: Math.min(loginCard.offsetTop - 16, scrollableHeight),
+        behavior: "smooth"
+      });
+    });
+
+    window.addEventListener("scroll", refreshScrollWheelButton, { passive: true });
+    window.addEventListener("resize", refreshScrollWheelButton);
+
     redirectIfAuthenticated();
     window.requestAnimationFrame(() => {
       document.body.classList.add("ready");
+      refreshScrollWheelButton();
     });
   </script>
 </body>
