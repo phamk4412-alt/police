@@ -1018,11 +1018,17 @@ function handleAuditLogs(req, res) {
 }
 
 module.exports = async (req, res) => {
-  const pathParts = Array.isArray(req.query.path)
+  const queryPathParts = Array.isArray(req.query?.path)
     ? req.query.path
-    : typeof req.query.path === "string"
+    : typeof req.query?.path === "string"
       ? [req.query.path]
       : [];
+  const requestUrl = new URL(req.url || "/", `https://${req.headers.host || "localhost"}`);
+  const pathnameParts = requestUrl.pathname
+    .split("/")
+    .filter(Boolean)
+    .slice(1);
+  const pathParts = queryPathParts.length > 0 ? queryPathParts : pathnameParts;
 
   res.setHeader("Cache-Control", "no-store");
 
