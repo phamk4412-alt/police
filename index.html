@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Đăng nhập hệ thống cảnh sát</title>
+  <script src="./app-config.js"></script>
   <style>
     :root {
       color-scheme: dark;
@@ -584,10 +585,15 @@
     const statusNode = document.getElementById("status");
     const fillAdminButton = document.getElementById("fillAdmin");
     const scrollWheelButton = document.getElementById("scrollWheelButton");
+    const apiBase = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
 
     function setStatus(message, type) {
       statusNode.textContent = message;
       statusNode.className = `status ${type}`.trim();
+    }
+
+    function apiUrl(path) {
+      return `${apiBase}${path}`;
     }
 
     async function readPayload(response) {
@@ -602,7 +608,7 @@
 
     async function redirectIfAuthenticated() {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await fetch(apiUrl("/api/auth/me"));
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
@@ -632,7 +638,7 @@
 
       setStatus("Đang xác thực tài khoản...", "");
       try {
-        const response = await fetch("/api/auth/login", {
+        const response = await fetch(apiUrl("/api/auth/login"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
