@@ -1002,11 +1002,12 @@
         }
 
         const payload = await response.json();
-        const actualRole = (payload.role || "").toLowerCase();
+        const actualRole = (payload.role || payload.Role || "").toLowerCase();
+        const redirectPath = payload.redirectPath || payload.RedirectPath || "/";
         sessionStorage.setItem("policeRole", actualRole);
 
         if (actualRole !== expectedRole) {
-          window.location.href = payload.redirectPath || "/";
+          window.location.href = redirectPath;
           return false;
         }
 

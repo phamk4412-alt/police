@@ -539,6 +539,10 @@
       return { rawText: text };
     }
 
+    function getPayloadValue(payload, camelName, pascalName) {
+      return payload?.[camelName] ?? payload?.[pascalName];
+    }
+
     async function redirectIfAuthenticated() {
       try {
         const response = await window.POLICE_API.fetch("/api/auth/me");
@@ -547,11 +551,13 @@
         }
 
         const payload = await readPayload(response);
-        if (payload.role) {
-          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
+        const role = getPayloadValue(payload, "role", "Role");
+        const redirectPath = getPayloadValue(payload, "redirectPath", "RedirectPath");
+        if (role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[role] || role.toLowerCase());
         }
-        if (payload.redirectPath) {
-          window.location.replace(payload.redirectPath);
+        if (redirectPath) {
+          window.location.replace(redirectPath);
         }
       } catch {
         const storedRole = sessionStorage.getItem("policeRole");
@@ -592,12 +598,14 @@
         }
 
         const payload = await readPayload(response);
-        if (payload.role) {
-          sessionStorage.setItem("policeRole", roleToStorageValue[payload.role] || payload.role.toLowerCase());
+        const role = getPayloadValue(payload, "role", "Role");
+        const redirectPath = getPayloadValue(payload, "redirectPath", "RedirectPath");
+        if (role) {
+          sessionStorage.setItem("policeRole", roleToStorageValue[role] || role.toLowerCase());
         }
 
         setStatus("Đăng nhập thành công, đang chuyển trang...", "success");
-        window.location.href = payload.redirectPath || "/";
+        window.location.href = redirectPath || "/";
       } catch {
         const normalizedUsername = username.toLowerCase();
         const demoAccount = demoAccounts[normalizedUsername];
