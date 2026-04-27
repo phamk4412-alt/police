@@ -4,52 +4,90 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nhân viên hỗ trợ</title>
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.3.0/turf.min.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
   <style>
     :root {
       color-scheme: dark;
-      --bg-1: #08111f;
-      --bg-2: #241832;
-      --panel: rgba(255, 255, 255, 0.09);
-      --panel-strong: rgba(255, 255, 255, 0.12);
-      --panel-soft: rgba(255, 255, 255, 0.04);
-      --line: rgba(255, 255, 255, 0.16);
-      --text: #f8fbff;
-      --muted: #c5d0df;
-      --gold: #f59e0b;
+      --bg-1: #120d05;
+      --bg-2: #251603;
+      --panel: rgba(44, 29, 8, 0.88);
+      --panel-soft: rgba(255, 255, 255, 0.045);
+      --line: rgba(245, 158, 11, 0.18);
+      --line-strong: rgba(251, 191, 36, 0.28);
+      --text: #fff7e8;
+      --muted: #e7d6b5;
       --amber: #fbbf24;
       --orange: #fb923c;
-      --cyan: #27d7c4;
-      --blue: #4c98ff;
-      --red: #ef4444;
-      --green: #86efac;
+      --green: #4ade80;
       --shadow: 0 26px 70px rgba(0, 0, 0, 0.3);
+      --map-height: 720px;
     }
 
     * {
       box-sizing: border-box;
     }
 
+    html,
     body {
       margin: 0;
-      min-height: 100vh;
+      min-height: 100%;
       font-family: "Segoe UI", Tahoma, sans-serif;
       color: var(--text);
       background:
-        linear-gradient(135deg, rgba(251, 191, 36, 0.14) 0 16%, transparent 16%),
-        linear-gradient(315deg, rgba(39, 215, 196, 0.14) 0 15%, transparent 15%),
-        linear-gradient(180deg, var(--bg-1), #11243c 58%, var(--bg-2));
+        radial-gradient(circle at top left, rgba(245, 158, 11, 0.12), transparent 24%),
+        radial-gradient(circle at bottom right, rgba(251, 146, 60, 0.14), transparent 26%),
+        linear-gradient(180deg, var(--bg-1), var(--bg-2));
+    }
+
+    body {
       position: relative;
       overflow-x: hidden;
     }
 
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 32vw;
+      height: 32vw;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+      filter: blur(18px);
+      animation: orb 16s ease-in-out infinite;
+    }
+
+    body::before {
+      top: -9vw;
+      left: -8vw;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.24), transparent 65%);
+    }
+
+    body::after {
+      right: -10vw;
+      bottom: -10vw;
+      background: radial-gradient(circle, rgba(251, 146, 60, 0.24), transparent 65%);
+      animation-delay: -8s;
+    }
+
+    button,
+    input,
+    textarea,
+    select {
+      font: inherit;
+    }
+
     .wrap {
-      width: min(1320px, 100%);
+      width: min(1440px, 100%);
       margin: 0 auto;
-      padding: 28px 24px 40px;
+      padding: 24px 22px 32px;
       position: relative;
       z-index: 1;
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(18px);
       transition: opacity 0.7s ease, transform 0.7s ease;
     }
 
@@ -63,11 +101,11 @@
       justify-content: space-between;
       gap: 18px;
       align-items: center;
-      margin-bottom: 22px;
+      margin-bottom: 16px;
       flex-wrap: wrap;
-      padding: 24px 26px;
-      border-radius: 20px;
-      background: linear-gradient(135deg, rgba(31, 44, 69, 0.92), rgba(47, 35, 72, 0.9));
+      padding: 22px 24px;
+      border-radius: 24px;
+      background: rgba(28, 18, 4, 0.82);
       border: 1px solid var(--line);
       box-shadow: var(--shadow);
       backdrop-filter: blur(20px);
@@ -75,7 +113,8 @@
       overflow: hidden;
     }
 
-    .top::after {
+    .top::after,
+    .panel::after {
       content: "";
       position: absolute;
       inset: 0;
@@ -95,20 +134,21 @@
     h1,
     h2,
     h3,
+    h4,
     p {
       margin: 0;
     }
 
     h1 {
-      font-size: clamp(2rem, 4vw, 3rem);
-      line-height: 1.06;
-      letter-spacing: -0.04em;
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      line-height: 1.08;
+      letter-spacing: 0;
     }
 
     .sub {
       margin-top: 10px;
-      max-width: 820px;
-      line-height: 1.7;
+      max-width: 880px;
+      line-height: 1.6;
       color: var(--muted);
     }
 
@@ -117,10 +157,12 @@
       align-items: center;
       gap: 12px;
       flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .live-pill,
-    .queue-pill {
+    .queue-pill,
+    .mini-badge {
       display: inline-flex;
       align-items: center;
       gap: 10px;
@@ -131,6 +173,7 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
       background: rgba(255, 255, 255, 0.05);
       color: #fff0d1;
+      white-space: nowrap;
     }
 
     .live-pill::before {
@@ -142,18 +185,44 @@
       box-shadow: 0 0 0 6px rgba(134, 239, 172, 0.15);
     }
 
-    .btn {
+    .menu {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .menu-btn,
+    .btn,
+    .quick-btn {
       border: 0;
       border-radius: 999px;
-      min-height: 46px;
+      min-height: 44px;
       padding: 0 18px;
       font: inherit;
       font-weight: 700;
       cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, background 0.2s ease;
     }
 
-    .btn:hover {
+    .menu-btn {
+      min-height: 40px;
+      background: transparent;
+      color: var(--muted);
+    }
+
+    .menu-btn.active {
+      background: linear-gradient(135deg, var(--amber), var(--orange));
+      color: #281600;
+      box-shadow: 0 14px 28px rgba(251, 146, 60, 0.24);
+    }
+
+    .menu-btn:hover,
+    .btn:hover,
+    .quick-btn:hover {
       transform: translateY(-1px);
     }
 
@@ -164,13 +233,13 @@
     }
 
     .primary {
-      background: linear-gradient(135deg, var(--cyan), var(--blue));
-      color: #02131f;
+      background: linear-gradient(135deg, var(--amber), var(--orange));
+      color: #281600;
       box-shadow: 0 18px 34px rgba(251, 146, 60, 0.22);
     }
 
     .secondary {
-      background: linear-gradient(135deg, var(--amber), var(--orange));
+      background: linear-gradient(135deg, #f59e0b, #f97316);
       color: white;
       box-shadow: 0 18px 34px rgba(249, 115, 22, 0.22);
     }
@@ -181,16 +250,51 @@
       border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 18px;
-      margin-bottom: 18px;
+    .quick-btn {
+      min-height: 38px;
+      padding: 0 14px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .stat-card,
+    .views {
+      display: grid;
+      gap: 12px;
+    }
+
+    .view {
+      display: none;
+      animation: fadeIn 0.24s ease;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    .dispatch-layout,
+    .patrol-layout {
+      display: grid;
+      gap: 16px;
+      align-items: start;
+    }
+
+    .dispatch-layout {
+      grid-template-columns: minmax(0, 7fr) minmax(320px, 3fr);
+    }
+
+    .patrol-layout {
+      grid-template-columns: minmax(0, 2.35fr) minmax(300px, 0.78fr);
+    }
+
+    .stack {
+      display: grid;
+      gap: 16px;
+    }
+
     .panel {
-      border-radius: 18px;
+      padding: 20px;
+      border-radius: 24px;
       border: 1px solid var(--line);
       background: var(--panel);
       box-shadow: var(--shadow);
@@ -199,157 +303,232 @@
       overflow: hidden;
     }
 
-    .stat-card::after,
-    .panel::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(255, 255, 255, 0.07), transparent 28%, transparent 75%, rgba(255, 255, 255, 0.03));
-      pointer-events: none;
-    }
-
-    .stat-card {
-      padding: 18px;
-    }
-
-    .stat-label {
-      color: var(--muted);
-      font-size: 0.9rem;
-      font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-    }
-
-    .stat-value {
-      margin-top: 12px;
-      font-size: 2rem;
-      font-weight: 800;
-      line-height: 1;
-    }
-
-    .stat-note {
-      margin-top: 10px;
-      color: var(--muted);
-      line-height: 1.5;
-      font-size: 0.93rem;
-    }
-
-    .layout {
-      display: grid;
-      grid-template-columns: minmax(0, 1.15fr) minmax(340px, 0.85fr);
-      gap: 18px;
-      align-items: start;
-    }
-
-    .stack {
-      display: grid;
-      gap: 18px;
-    }
-
-    .panel {
-      padding: 22px;
-    }
-
     .panel h2 {
-      font-size: 1.18rem;
-      margin-bottom: 14px;
+      font-size: 1.14rem;
+      margin-bottom: 12px;
     }
 
     .panel-sub {
       color: var(--muted);
-      line-height: 1.6;
-      margin-bottom: 16px;
+      line-height: 1.55;
+      margin-bottom: 12px;
     }
 
-    .feed-list,
-    .queue-list,
-    .mini-list {
+    .map-shell {
+      padding: 16px;
+    }
+
+    .map-shell-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+    .map-shell-head h2 {
+      margin-bottom: 8px;
+    }
+
+    .map-status-row,
+    .legend,
+    .report-list,
+    .activity-list {
       display: grid;
       gap: 12px;
     }
 
-    .feed-item,
-    .queue-item,
-    .mini-item {
-      padding: 16px;
+    .report-item,
+    .call-card,
+    .vehicle-card,
+    .activity-item {
+      padding: 14px 16px;
       border-radius: 18px;
       background: var(--panel-soft);
       border: 1px solid rgba(255, 255, 255, 0.08);
-      transition: transform 0.22s ease, border-color 0.22s ease, background 0.22s ease;
+      transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }
 
-    .feed-item:hover,
-    .queue-item:hover,
-    .mini-item:hover {
+    .report-item {
+      cursor: pointer;
+    }
+
+    .report-item:hover,
+    .report-item.active,
+    .call-card:hover,
+    .vehicle-card:hover,
+    .activity-item:hover {
       transform: translateY(-2px);
-      border-color: rgba(251, 191, 36, 0.22);
-      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--line-strong);
+      background: rgba(255, 255, 255, 0.065);
     }
 
-    .item-top {
+    .report-item strong,
+    .call-card strong,
+    .vehicle-card strong,
+    .activity-item strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .report-item span,
+    .call-card span,
+    .vehicle-card span,
+    .activity-item span,
+    .detail-grid dd,
+    .hint-text {
+      color: var(--muted);
+      font-size: 0.94rem;
+      line-height: 1.55;
+    }
+
+    .map-frame {
+      position: relative;
+      min-height: 560px;
+      border-radius: 22px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: #0f172a;
+    }
+
+    #dispatchView .map-frame {
+      height: 780px;
+    }
+
+    #patrolView .map-frame {
+      height: 800px;
+    }
+
+    #dispatchMap,
+    #patrolMap {
+      width: 100%;
+      height: 100%;
+    }
+
+    .map-overlay {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      bottom: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+
+    .overlay-card {
+      pointer-events: auto;
+      min-width: 220px;
+      max-width: 340px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(17, 24, 39, 0.84);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(14px);
+    }
+
+    .sidebar-title-row {
       display: flex;
       align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .status-chip,
+    .priority-pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 7px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      white-space: nowrap;
+    }
+
+    .status-chip.new {
+      color: #fff1b2;
+      background: rgba(251, 191, 36, 0.16);
+    }
+
+    .status-chip.processing {
+      color: #d7e9ff;
+      background: rgba(96, 165, 250, 0.16);
+    }
+
+    .status-chip.done {
+      color: #d5ffe1;
+      background: rgba(74, 222, 128, 0.16);
+    }
+
+    .priority-pill.high {
+      color: #ffd4d4;
+      background: rgba(239, 68, 68, 0.14);
+    }
+
+    .priority-pill.medium {
+      color: #ffe29a;
+      background: rgba(251, 191, 36, 0.14);
+    }
+
+    .priority-pill.low {
+      color: #d5ffe1;
+      background: rgba(74, 222, 128, 0.14);
+    }
+
+    .report-item-top,
+    .card-top {
+      display: flex;
+      align-items: flex-start;
       justify-content: space-between;
       gap: 10px;
       margin-bottom: 8px;
     }
 
-    .item-top strong {
-      font-size: 1rem;
+    .detail-grid {
+      display: grid;
+      gap: 10px;
+      margin: 0;
     }
 
-    .item-meta,
-    .item-copy {
-      color: var(--muted);
-      line-height: 1.55;
-      font-size: 0.94rem;
+    .detail-grid div {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
     }
 
-    .status-chip {
-      padding: 7px 10px;
-      border-radius: 999px;
-      font-size: 0.8rem;
+    .detail-grid dt {
+      margin-bottom: 4px;
+      color: #ffd280;
+      font-size: 0.82rem;
       font-weight: 700;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      white-space: nowrap;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
 
-    .status-chip.warning {
-      color: #ffe29a;
-      background: rgba(251, 191, 36, 0.14);
+    .detail-grid dd {
+      margin: 0;
+      color: var(--text);
     }
 
-    .status-chip.alert {
-      color: #ffd4d4;
-      background: rgba(239, 68, 68, 0.14);
+    .call-card {
+      background: rgba(12, 10, 5, 0.58);
+      border-color: rgba(251, 191, 36, 0.18);
     }
 
-    .status-chip.good {
-      color: #caffd9;
-      background: rgba(134, 239, 172, 0.14);
-    }
-
-    .hotline-card {
-      padding: 18px;
-      border-radius: 20px;
-      background: rgba(15, 9, 2, 0.55);
-      border: 1px solid rgba(251, 191, 36, 0.14);
-      margin-bottom: 16px;
-    }
-
-    .hotline-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-
-    .hotline-note {
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.94rem;
+    .call-highlight {
+      padding: 13px 14px;
+      border-radius: 16px;
+      margin-top: 12px;
+      background: rgba(96, 165, 250, 0.12);
+      border: 1px solid rgba(96, 165, 250, 0.18);
+      color: #dfefff;
+      line-height: 1.55;
     }
 
     label {
@@ -370,7 +549,6 @@
       border: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(10, 7, 2, 0.82);
       color: var(--text);
-      font: inherit;
       outline: none;
       transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
     }
@@ -384,7 +562,7 @@
     }
 
     textarea {
-      min-height: 160px;
+      min-height: 120px;
       resize: vertical;
     }
 
@@ -412,27 +590,196 @@
       font-size: 0.93rem;
     }
 
+    .vehicle-list,
+    .report-list {
+      max-height: 320px;
+      overflow: auto;
+      padding-right: 4px;
+    }
+
+    .vehicle-list::-webkit-scrollbar,
+    .report-list::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .vehicle-list::-webkit-scrollbar-thumb,
+    .report-list::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.16);
+      border-radius: 999px;
+    }
+
+    .vehicle-icon {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(12px);
+      transform: translateZ(0);
+    }
+
+    .vehicle-icon svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+      transform: rotate(var(--vehicle-rotation, 0deg));
+      transform-origin: center;
+      transition: transform 0.14s linear;
+    }
+
+    .report-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.88);
+      box-shadow: 0 0 0 7px rgba(255, 255, 255, 0.05);
+    }
+
+    .report-dot.new {
+      background: #ef4444;
+      box-shadow: 0 0 0 10px rgba(239, 68, 68, 0.18), 0 0 18px rgba(239, 68, 68, 0.45);
+      animation: pulse 1.7s infinite;
+    }
+
+    .report-dot.processing {
+      background: #f59e0b;
+    }
+
+    .report-dot.done {
+      background: #22c55e;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .legend-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.86);
+    }
+
+    .legend-swatch.red {
+      background: #ef4444;
+      box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.12);
+    }
+
+    .legend-swatch.orange {
+      background: #f59e0b;
+    }
+
+    .legend-swatch.green {
+      background: #22c55e;
+    }
+
+    .mapboxgl-popup-content {
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: rgba(25, 19, 11, 0.96);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.35);
+    }
+
+    .mapboxgl-popup-close-button {
+      color: var(--text);
+      font-size: 18px;
+      padding: 6px 10px;
+    }
+
+    .popup-title {
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .popup-copy {
+      color: var(--muted);
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .mapboxgl-ctrl-group {
+      border-radius: 16px;
+      overflow: hidden;
+      background: rgba(25, 19, 11, 0.9);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    @keyframes orb {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+
+      50% {
+        transform: translate3d(20px, 20px, 0) scale(1.06);
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0.18), 0 0 18px rgba(239, 68, 68, 0.45);
+      }
+
+      50% {
+        box-shadow: 0 0 0 16px rgba(239, 68, 68, 0.08), 0 0 26px rgba(239, 68, 68, 0.55);
+      }
+    }
+
     @media (max-width: 1100px) {
-      .stats-grid,
-      .layout {
+      .dispatch-layout,
+      .patrol-layout {
         grid-template-columns: 1fr;
+      }
+
+      :root {
+        --map-height: 560px;
       }
     }
 
     @media (max-width: 720px) {
       .wrap {
-        padding: 18px 14px 28px;
+        padding: 16px 12px 24px;
       }
 
       .top,
-      .panel,
-      .stat-card {
+      .panel {
         padding-left: 18px;
         padding-right: 18px;
       }
 
       .grid-2 {
         grid-template-columns: 1fr;
+      }
+
+      .menu {
+        width: 100%;
+      }
+
+      .menu-btn {
+        flex: 1 1 0;
+      }
+
+      #dispatchView .map-frame,
+      #patrolView .map-frame {
+        height: 500px;
       }
     }
   </style>
@@ -442,185 +789,208 @@
     <div class="top">
       <div>
         <p class="eyebrow">Support Desk</p>
-        <h1>Quan sát, tiếp nhận và điều phối nhanh</h1>
-        <p class="sub">Theo dõi hàng đợi, mức ưu tiên và chuyển xử lý trong một màn hình gọn.</p>
+        <h1>Quan sát, tiếp nhận và điều phối theo hai chế độ vận hành</h1>
+        <p class="sub">Giao diện hỗ trợ được tách rõ giữa trung tâm thường trực và điều phối tuần tra. Bản đồ là trọng tâm, panel bên phải tập trung cho tiếp nhận, ưu tiên và phản hồi xử lý.</p>
       </div>
       <div class="top-actions">
         <div class="live-pill">Ca trực online</div>
-        <div class="queue-pill" id="queueCounter">04 cuộc chờ xử lý</div>
+        <div class="queue-pill" id="queueCounter">04 báo cáo chờ xử lý</div>
+        <div class="menu">
+          <button class="menu-btn active" data-view-target="dispatchView">Trang Thường Trực</button>
+          <button class="menu-btn" data-view-target="patrolView">Trang Tuần Tra</button>
+        </div>
         <button class="btn logout" id="logoutButton">Đăng xuất</button>
       </div>
     </div>
 
-    <section class="stats-grid">
-      <article class="stat-card">
-        <div class="stat-label">Cuộc đến đang mở</div>
-        <div class="stat-value">12</div>
-        <div class="stat-note">4 cuộc cần chuyển cảnh sát và 3 cuộc đang đợi gọi lại.</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">Thời gian phản hồi</div>
-        <div class="stat-value">01:42</div>
-        <div class="stat-note">Thời gian trung bình từ tiếp nhận đến tạo phiếu hỗ trợ.</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">Mức ưu tiên cao</div>
-        <div class="stat-value">05</div>
-        <div class="stat-note">Tình huống liên quan an ninh, va chạm và mất cắp tài sản.</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">Nhân sự sẵn sàng</div>
-        <div class="stat-value">08</div>
-        <div class="stat-note">6 nhân viên hotline và 2 điều phối viên trực cập nhật.</div>
-      </article>
-    </section>
+    <div class="views">
+      <section class="view active" id="dispatchView">
+        <div class="dispatch-layout">
+          <div class="stack">
+            <section class="panel map-shell">
+              <div class="map-shell-head">
+                <div>
+                  <h2>Trang Thường Trực</h2>
+                  <p class="panel-sub">Bản đồ khu vực dùng để theo dõi báo cáo theo trạng thái tiếp nhận, xử lý và hoàn thành. Các điểm mới tiếp nhận được nhấn mạnh để ưu tiên thao tác trước.</p>
+                </div>
+                <div class="map-status-row">
+                  <span class="mini-badge">Ranh giới TP.HCM</span>
+                  <span class="mini-badge">Ưu tiên theo cấp độ</span>
+                  <button class="quick-btn" id="focusNearestButton">Gợi ý đơn vị gần nhất</button>
+                </div>
+              </div>
 
-    <div class="layout">
-      <div class="stack">
-        <section class="panel">
-          <h2>Bảng theo dõi sống</h2>
-          <div class="feed-list">
-            <article class="feed-item">
-              <div class="item-top">
-                <strong>Camera 02 - Quận 10</strong>
-                <span class="status-chip warning">Đang theo dõi</span>
+              <div class="map-frame">
+                <div id="dispatchMap"></div>
+                <div class="map-overlay">
+                  <div class="overlay-card">
+                    <strong>Chú giải trạng thái</strong>
+                    <div class="legend">
+                      <div class="legend-row"><span class="legend-swatch red"></span><span>Báo cáo mới tiếp nhận</span></div>
+                      <div class="legend-row"><span class="legend-swatch orange"></span><span>Đang điều công an / đang xử lý</span></div>
+                      <div class="legend-row"><span class="legend-swatch green"></span><span>Đã hoàn thành</span></div>
+                    </div>
+                  </div>
+                  <div class="overlay-card" id="dispatchOverlayStatus">
+                    <strong>Điều phối hiện tại</strong>
+                    <div class="hint-text">Chọn một báo cáo ở sidebar để xem chi tiết và đề xuất điều động.</div>
+                  </div>
+                </div>
               </div>
-              <div class="item-copy">Phát hiện dòng người tập trung bất thường gần ngã tư. Hệ thống đã đánh dấu theo dõi 10 phút liên tục.</div>
-            </article>
-            <article class="feed-item">
-              <div class="item-top">
-                <strong>App công dân - Quận 1</strong>
-                <span class="status-chip good">Đã chuyển đội</span>
-              </div>
-              <div class="item-copy">Báo mất cắp tài sản đã được tạo phiếu và chuyển sang kênh cảnh sát trực địa bàn.</div>
-            </article>
-            <article class="feed-item">
-              <div class="item-top">
-                <strong>Camera 11 - Bình Thạnh</strong>
-                <span class="status-chip alert">Chờ xác minh</span>
-              </div>
-              <div class="item-copy">Va chạm giao thông gây ùn tắc cục bộ. Cần xác minh số người liên quan và hướng điều tiết.</div>
-            </article>
-            <article class="feed-item">
-              <div class="item-top">
-                <strong>Hotline - Quận 3</strong>
-                <span class="status-chip warning">Đang gọi lại</span>
-              </div>
-              <div class="item-copy">Người dân báo mất liên lạc trong quá trình mô tả sự việc, hệ thống đặt ưu tiên callback.</div>
-            </article>
-          </div>
-        </section>
-
-        <section class="panel">
-          <h2>Hàng đợi cần xử lý</h2>
-          <div class="queue-list">
-            <article class="queue-item">
-              <div class="item-top">
-                <strong>Mất cắp xe máy</strong>
-                <span class="status-chip alert">Ưu tiên cao</span>
-              </div>
-              <div class="item-meta">Quận 1 | 09:12 | Cần chốt camera lân cận và tạo mã tra cứu cho người dân.</div>
-            </article>
-            <article class="queue-item">
-              <div class="item-top">
-                <strong>Phản ánh gây rối</strong>
-                <span class="status-chip warning">Cần gọi lại</span>
-              </div>
-              <div class="item-meta">Quận 5 | 09:18 | Chưa đủ mô tả về số người tham gia và tình hình hiện tại.</div>
-            </article>
-            <article class="queue-item">
-              <div class="item-top">
-                <strong>Va chạm giao thông</strong>
-                <span class="status-chip good">Đã nhận</span>
-              </div>
-              <div class="item-meta">Bình Thạnh | 09:21 | Đang chờ điều phối viên chuyển đội cảnh sát giao thông.</div>
-            </article>
-          </div>
-        </section>
-      </div>
-
-      <div class="stack">
-        <section class="panel">
-          <h2>Tiếp nhận cuộc gọi</h2>
-          <div class="hotline-card">
-            <div class="hotline-top">
-              <strong>Caller channel active</strong>
-              <span class="status-chip good">SLA on track</span>
-            </div>
+            </section>
           </div>
 
-          <div class="grid-2">
-            <div>
-              <label for="callerPhone">Số điện thoại</label>
-              <input id="callerPhone" type="text" value="0909 123 456" />
-            </div>
-            <div>
-              <label for="staffName">Nhân viên tiếp nhận</label>
-              <input id="staffName" type="text" value="NV Hỗ trợ 01" />
-            </div>
-          </div>
-
-          <div class="grid-2">
-            <div>
-              <label for="priorityLevel">Mức độ ưu tiên</label>
-              <select id="priorityLevel">
-                <option selected>Khẩn cấp</option>
-                <option>Cao</option>
-                <option>Trung bình</option>
-                <option>Thấp</option>
-              </select>
-            </div>
-            <div>
-              <label for="handoffTo">Hướng chuyển</label>
-              <select id="handoffTo">
-                <option selected>Cảnh sát trực</option>
-                <option>Điều phối viên</option>
-                <option>Xử lý nội bộ</option>
-              </select>
-            </div>
-          </div>
-
-          <label for="callSummary">Tóm tắt nội dung</label>
-          <textarea id="callSummary">Mô tả ngắn tình huống, vị trí gần đúng, dấu hiệu nhận dạng, số người liên quan và yêu cầu hỗ trợ để đội xử lý tiếp nhận nhanh hơn.</textarea>
-
-          <div class="actions">
-            <button class="btn primary" id="acceptButton">Tiếp nhận</button>
-            <button class="btn secondary" id="handoffButton">Chuyển cảnh sát</button>
-            <button class="btn dark" id="finishButton">Kết thúc</button>
-          </div>
-
-          <div class="footer-note" id="actionStatus">Trạng thái sẵn sàng. Cuộc gọi sẽ được cập nhật vào hàng đợi ngay khi nhân viên thao tác.</div>
-        </section>
-
-        <section class="panel">
-          <h2>Nhịp vận hành</h2>
-          <div class="mini-list">
-            <article class="mini-item">
-              <div class="item-top">
-                <strong>Khung giờ cao điểm</strong>
-                <span class="status-chip warning">09:00 - 11:00</span>
+          <div class="stack">
+            <section class="panel">
+              <div class="sidebar-title-row">
+                <div>
+                  <h2>Danh sách báo cáo</h2>
+                  <p class="panel-sub">Sắp xếp theo cấp độ ưu tiên, sau đó theo thời gian tiếp nhận mới nhất.</p>
+                </div>
               </div>
-              <div class="item-meta">Tăng trước người trực tổng đài và ưu tiên các phản ánh giao thông, mất cắp, và gọi khẩn.</div>
-            </article>
-            <article class="mini-item">
-              <div class="item-top">
-                <strong>Kênh ưu tiên</strong>
-                <span class="status-chip good">App + Hotline</span>
+              <div class="report-list" id="reportList"></div>
+            </section>
+
+            <section class="panel">
+              <div class="sidebar-title-row">
+                <div>
+                  <h2>Chi tiết báo cáo</h2>
+                  <p class="panel-sub">Thông tin hồ sơ, xác thực tài khoản và trạng thái điều phối của báo cáo đang chọn.</p>
+                </div>
+                <span class="status-chip new" id="detailStatusChip">Mới tiếp nhận</span>
               </div>
-              <div class="item-meta">Giữ thông điệp phản hồi nhất quán để người dân nhận được hướng dẫn rõ ràng trong 30 giây đầu.</div>
-            </article>
-            <article class="mini-item">
-              <div class="item-top">
-                <strong>Cảnh báo hiện tại</strong>
-                <span class="status-chip alert">03 mục cần chú ý</span>
+              <dl class="detail-grid" id="reportDetails"></dl>
+            </section>
+
+            <section class="panel">
+              <h2>Tiếp nhận cuộc gọi</h2>
+              <div class="call-card">
+                <div class="card-top">
+                  <div>
+                    <strong id="callUserName">Nguyễn Minh Khoa</strong>
+                    <span id="callUserMeta">SĐT 0909 123 456 • Quận 1</span>
+                  </div>
+                  <span class="priority-pill high" id="callPriorityPill">Khẩn cấp</span>
+                </div>
+                <span id="callIncidentType">Loại sự cố: Trộm cắp tài sản</span>
+                <div class="call-highlight" id="dispatchSuggestion">
+                  Đơn vị gần nhất: Chưa chọn báo cáo để gợi ý điều phối.
+                </div>
               </div>
-              <div class="item-meta">Hai phản ánh liên quan khu trung tâm và một yêu cầu callback chưa xác minh được tọa độ cụ thể.</div>
-            </article>
+
+              <div class="grid-2">
+                <div>
+                  <label for="callerPhone">Số điện thoại</label>
+                  <input id="callerPhone" type="text" value="0909 123 456" />
+                </div>
+                <div>
+                  <label for="staffName">Nhân viên tiếp nhận</label>
+                  <input id="staffName" type="text" value="NV Hỗ trợ 01" />
+                </div>
+              </div>
+
+              <div class="grid-2">
+                <div>
+                  <label for="priorityLevel">Mức độ ưu tiên</label>
+                  <select id="priorityLevel">
+                    <option>Khẩn cấp</option>
+                    <option selected>Cao</option>
+                    <option>Trung bình</option>
+                    <option>Thấp</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="handoffTo">Trạng thái xử lý</label>
+                  <select id="handoffTo">
+                    <option selected>Mới tiếp nhận</option>
+                    <option>Đang điều công an</option>
+                    <option>Đã hoàn thành</option>
+                  </select>
+                </div>
+              </div>
+
+              <label for="callSummary">Tóm tắt nội dung</label>
+              <textarea id="callSummary">Mô tả nhanh hiện trường, nhận diện đối tượng, hướng di chuyển, số người liên quan và các thông tin hỗ trợ để đơn vị gần nhất tiếp cận ngay.</textarea>
+
+              <div class="actions">
+                <button class="btn primary" id="acceptButton">Tiếp nhận</button>
+                <button class="btn secondary" id="handoffButton">Điều công an</button>
+                <button class="btn dark" id="finishButton">Hoàn thành</button>
+              </div>
+
+              <div class="footer-note" id="actionStatus">Trạng thái sẵn sàng. Chọn báo cáo để đồng bộ thông tin cuộc gọi và điều phối.</div>
+            </section>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
+
+      <section class="view" id="patrolView">
+        <div class="patrol-layout">
+          <div class="stack">
+            <section class="panel map-shell">
+              <div class="map-shell-head">
+                <div>
+                  <h2>Trang Tuần Tra</h2>
+                  <p class="panel-sub">Bản đồ 3D hiển thị các tổ công an đang di chuyển trên tuyến tuần tra thật trong khu vực Thành phố Hồ Chí Minh.</p>
+                </div>
+                <div class="map-status-row">
+                  <span class="mini-badge">Bản đồ 3D</span>
+                  <span class="mini-badge">8 xe đang hoạt động</span>
+                </div>
+              </div>
+
+              <div class="map-frame">
+                <div id="patrolMap"></div>
+                <div class="map-overlay">
+                  <div class="overlay-card">
+                    <strong>Trạng thái đội xe</strong>
+                    <div class="hint-text">8 xe cảnh sát di chuyển chậm và mượt theo tuyến đường thật từ Mapbox Directions API.</div>
+                  </div>
+                  <div class="overlay-card" id="patrolOverlayStatus">
+                    <strong>Xe đang theo dõi</strong>
+                    <div class="hint-text">Chọn một xe trên bản đồ hoặc danh sách bên phải để xem chi tiết.</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class="stack">
+            <section class="panel">
+              <h2>Danh sách tổ tuần tra</h2>
+              <p class="panel-sub">8 xe được hiển thị đồng thời trên bản đồ và trong danh sách để theo dõi trạng thái hoạt động trên từng tuyến khác nhau.</p>
+              <div class="vehicle-list" id="vehicleList"></div>
+            </section>
+
+            <section class="panel">
+              <h2>Thông tin xe tuần tra</h2>
+              <p class="panel-sub">Thông tin được đồng bộ với marker đang di chuyển trên bản đồ.</p>
+              <dl class="detail-grid" id="vehicleDetails"></dl>
+            </section>
+
+            <section class="panel">
+              <h2>Nhịp vận hành</h2>
+              <div class="activity-list">
+                <article class="activity-item">
+                  <strong>Tuyến ưu tiên</strong>
+                  <span>Quận 1, Quận 3, Quận 5, Quận 7, Tân Bình, Gò Vấp, Bình Tân và Thủ Đức đang có 8 xe tuần tra lưu động.</span>
+                </article>
+                <article class="activity-item">
+                  <strong>Ngưỡng cập nhật</strong>
+                  <span>Vị trí xe được cập nhật liên tục với tốc độ chậm hơn và có sai khác nhẹ giữa từng xe để chuyển động tự nhiên hơn.</span>
+                </article>
+                <article class="activity-item">
+                  <strong>Mục tiêu</strong>
+                  <span>Khi phát sinh sự cố từ trang thường trực, tổ gần nhất có thể được chọn làm lực lượng tiếp cận hiện trường đầu tiên.</span>
+                </article>
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
+
   <script>
     async function ensureRole(expectedRole) {
       try {
@@ -653,28 +1023,1160 @@
 
     ensureRole("support");
 
+    mapboxgl.accessToken = "pk.eyJ1IjoibWV4aXJpc2giLCJhIjoiY21vNWRpc2EyMXEweTJyb254MzFqbG1iNCJ9.GRmI8ieKWxlbCHAhq7__5Q";
+
+    const ACTIVE_VIEW_STORAGE_KEY = "POLICE_SUPPORT_ACTIVE_VIEW";
+    const VIEW_IDS = ["dispatchView", "patrolView"];
+
+    const reportStatusMap = {
+      new: "Mới tiếp nhận",
+      processing: "Đang điều công an",
+      done: "Đã hoàn thành"
+    };
+
+    const priorityRank = {
+      "Khẩn cấp": 4,
+      "Cao": 3,
+      "Trung bình": 2,
+      "Thấp": 1
+    };
+
+    const statusRank = {
+      new: 3,
+      processing: 2,
+      done: 1
+    };
+
+    const dispatchReports = [
+      {
+        id: "RP-1024",
+        name: "Nguyễn Minh Khoa",
+        address: "58 Nguyễn Huệ, Quận 1",
+        verified: true,
+        incidentType: "Trộm cắp tài sản",
+        priority: "Khẩn cấp",
+        status: "new",
+        phone: "0909 123 456",
+        receivedAt: "09:28",
+        description: "Người dân báo bị giật túi xách trước trung tâm thương mại, đối tượng rời đi bằng xe máy màu đen.",
+        coordinates: [106.7036, 10.7758]
+      },
+      {
+        id: "RP-1021",
+        name: "Trần Gia Hân",
+        address: "210 Điện Biên Phủ, Bình Thạnh",
+        verified: false,
+        incidentType: "Tai nạn giao thông",
+        priority: "Cao",
+        status: "processing",
+        phone: "0918 220 334",
+        receivedAt: "09:16",
+        description: "Va chạm giữa hai xe máy gây ùn nhẹ đầu cầu Điện Biên Phủ, cần đơn vị điều tiết hiện trường.",
+        coordinates: [106.7142, 10.7987]
+      },
+      {
+        id: "RP-1018",
+        name: "Lê Thu Trang",
+        address: "45 Trần Hưng Đạo, Quận 5",
+        verified: true,
+        incidentType: "Gây rối trật tự",
+        priority: "Trung bình",
+        status: "new",
+        phone: "0903 845 992",
+        receivedAt: "09:11",
+        description: "Nhóm 4 người cãi vã lớn trước cửa hàng, ảnh hưởng giao thông khu vực.",
+        coordinates: [106.6744, 10.7552]
+      },
+      {
+        id: "RP-1012",
+        name: "Phạm Quốc An",
+        address: "12 Xa lộ Hà Nội, TP. Thủ Đức",
+        verified: true,
+        incidentType: "Lừa đảo",
+        priority: "Cao",
+        status: "processing",
+        phone: "0931 112 019",
+        receivedAt: "08:54",
+        description: "Người dân nghi bị dụ chuyển khoản qua ứng dụng, đang chờ hỗ trợ xác minh đối tượng liên hệ.",
+        coordinates: [106.7605, 10.8011]
+      },
+      {
+        id: "RP-1007",
+        name: "Đỗ Hải Nam",
+        address: "95 Hoàng Sa, Quận 3",
+        verified: false,
+        incidentType: "Tai nạn giao thông",
+        priority: "Trung bình",
+        status: "done",
+        phone: "0971 552 660",
+        receivedAt: "08:32",
+        description: "Điểm va chạm đã được giải tỏa, đang chờ hoàn tất xác nhận biên bản hiện trường.",
+        coordinates: [106.6897, 10.7864]
+      },
+      {
+        id: "RP-1001",
+        name: "Võ Thuỳ Dương",
+        address: "77 Lê Văn Sỹ, Phú Nhuận",
+        verified: true,
+        incidentType: "Trộm cắp tài sản",
+        priority: "Thấp",
+        status: "done",
+        phone: "0988 101 778",
+        receivedAt: "08:06",
+        description: "Hoàn tất tiếp nhận hồ sơ mất điện thoại, đã hướng dẫn quy trình theo dõi và tra cứu.",
+        coordinates: [106.6791, 10.794]
+      }
+    ];
+
+    function createPatrolSpeed(min = 0.0045, max = 0.0085) {
+      return Number((min + Math.random() * (max - min)).toFixed(4));
+    }
+
+    const patrolVehicles = [
+      {
+        id: "CS-01",
+        area: "Quận 1 → Bình Thạnh",
+        unit: "Tổ tuần tra Quận 1",
+        status: "Đang tuần tra khu trung tâm",
+        origin: [106.70098, 10.77654],
+        destination: [106.71416, 10.79831],
+        progress: 0,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      },
+      {
+        id: "CS-07",
+        area: "Quận 1 → Quận 5",
+        unit: "Tổ điều phối Bình Thạnh",
+        status: "Di chuyển tới điểm ùn giao thông",
+        origin: [106.70143, 10.77511],
+        destination: [106.67344, 10.75543],
+        progress: 0.18,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      },
+      {
+        id: "CS-11",
+        area: "Quận 3 → Phú Nhuận",
+        unit: "Tổ tuần tra Quận 5",
+        status: "Kiểm tra tuyến dân cư đông người",
+        origin: [106.68838, 10.78501],
+        destination: [106.67952, 10.79918],
+        progress: 0.36,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      },
+      {
+        id: "CS-15",
+        area: "Thủ Đức → Bình Thạnh",
+        unit: "Tổ cơ động Thủ Đức",
+        status: "Tuần tra trục Xa lộ Hà Nội",
+        origin: [106.7612, 10.80174],
+        destination: [106.71055, 10.79761],
+        progress: 0.54,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      },
+      {
+        id: "CS-18",
+        area: "Quận 7 → Nhà Bè",
+        unit: "Tổ tuần tra Quận 7",
+        status: "Tuần tra trục Nguyễn Hữu Thọ",
+        origin: [106.72135, 10.72961],
+        destination: [106.70642, 10.69425],
+        progress: 0.09,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      },
+      {
+        id: "CS-21",
+        area: "Tân Bình → Gò Vấp",
+        unit: "Tổ tuần tra Tân Bình",
+        status: "Giám sát khu vực sân bay và vành đai lân cận",
+        origin: [106.65891, 10.80172],
+        destination: [106.67084, 10.83847],
+        progress: 0.23,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      },
+      {
+        id: "CS-24",
+        area: "Quận 10 → Quận 11",
+        unit: "Tổ tuần tra Quận 10",
+        status: "Tuần tra khu dân cư đông phương tiện",
+        origin: [106.66784, 10.77124],
+        destination: [106.64721, 10.76418],
+        progress: 0.41,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      },
+      {
+        id: "CS-28",
+        area: "Bình Tân → Quận 6",
+        unit: "Tổ tuần tra Bình Tân",
+        status: "Theo dõi tuyến cửa ngõ phía tây",
+        origin: [106.60342, 10.76591],
+        destination: [106.63578, 10.74626],
+        progress: 0.67,
+        speed: createPatrolSpeed(),
+        routeCoordinates: [],
+        routeDistanceMeters: 0,
+        routeDurationSeconds: 0,
+        routeReady: false,
+        routeError: ""
+      }
+    ];
+
     const queueCounter = document.getElementById("queueCounter");
     const actionStatus = document.getElementById("actionStatus");
     const acceptButton = document.getElementById("acceptButton");
     const handoffButton = document.getElementById("handoffButton");
     const finishButton = document.getElementById("finishButton");
+    const focusNearestButton = document.getElementById("focusNearestButton");
+    const reportList = document.getElementById("reportList");
+    const reportDetails = document.getElementById("reportDetails");
+    const detailStatusChip = document.getElementById("detailStatusChip");
+    const dispatchSuggestion = document.getElementById("dispatchSuggestion");
+    const dispatchOverlayStatus = document.getElementById("dispatchOverlayStatus");
+    const patrolOverlayStatus = document.getElementById("patrolOverlayStatus");
+    const vehicleList = document.getElementById("vehicleList");
+    const vehicleDetails = document.getElementById("vehicleDetails");
+    const callUserName = document.getElementById("callUserName");
+    const callUserMeta = document.getElementById("callUserMeta");
+    const callIncidentType = document.getElementById("callIncidentType");
+    const callPriorityPill = document.getElementById("callPriorityPill");
+    const callerPhone = document.getElementById("callerPhone");
+    const priorityLevel = document.getElementById("priorityLevel");
+    const handoffTo = document.getElementById("handoffTo");
+    const callSummary = document.getElementById("callSummary");
+    const viewMenuButtons = Array.from(document.querySelectorAll(".menu-btn"));
+
+    const state = {
+      activeView: sessionStorage.getItem(ACTIVE_VIEW_STORAGE_KEY) || "dispatchView",
+      selectedReportId: dispatchReports[0].id,
+      selectedVehicleId: patrolVehicles[0].id
+    };
+
+    let dispatchMap;
+    let patrolMap;
+    let dispatchBoundaryData = null;
+    let dispatchPopup;
+    let patrolPopup;
+    let patrolAnimationFrame = null;
+    let lastAnimationTimestamp = 0;
+    let lastVehicleUiUpdate = 0;
+    let patrolRoutesInitialized = false;
+    const dispatchMarkers = new Map();
+    const vehicleMarkers = new Map();
 
     function setActionStatus(message) {
       actionStatus.textContent = message;
     }
 
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function getStatusClass(status) {
+      return status === "processing" ? "processing" : status === "done" ? "done" : "new";
+    }
+
+    function getPriorityClass(priority) {
+      if (priority === "Khẩn cấp" || priority === "Cao") {
+        return "high";
+      }
+      return priority === "Trung bình" ? "medium" : "low";
+    }
+
+    function sortReports(items) {
+      return [...items].sort((a, b) => {
+        const priorityDiff = (priorityRank[b.priority] || 0) - (priorityRank[a.priority] || 0);
+        if (priorityDiff !== 0) {
+          return priorityDiff;
+        }
+
+        const statusDiff = (statusRank[b.status] || 0) - (statusRank[a.status] || 0);
+        if (statusDiff !== 0) {
+          return statusDiff;
+        }
+
+        return b.receivedAt.localeCompare(a.receivedAt);
+      });
+    }
+
+    function getSelectedReport() {
+      return dispatchReports.find(report => report.id === state.selectedReportId) || dispatchReports[0];
+    }
+
+    function getSelectedVehicle() {
+      return patrolVehicles.find(vehicle => vehicle.id === state.selectedVehicleId) || patrolVehicles[0];
+    }
+
+    function coordinatesMatch(first, second, epsilon = 0.000001) {
+      return Math.abs(first[0] - second[0]) <= epsilon && Math.abs(first[1] - second[1]) <= epsilon;
+    }
+
+    function buildDirectionsUrl(origin, destination) {
+      const params = new URLSearchParams({
+        alternatives: "false",
+        geometries: "geojson",
+        overview: "full",
+        steps: "false",
+        access_token: mapboxgl.accessToken
+      });
+
+      return `https://api.mapbox.com/directions/v5/mapbox/driving/${origin[0]},${origin[1]};${destination[0]},${destination[1]}?${params.toString()}`;
+    }
+
+    async function fetchDirectionsRoute(origin, destination) {
+      const response = await fetch(buildDirectionsUrl(origin, destination));
+      if (!response.ok) {
+        throw new Error(`Directions API error ${response.status}`);
+      }
+
+      const payload = await response.json();
+      const route = payload && payload.routes && payload.routes[0];
+      const coordinates = route && route.geometry && route.geometry.coordinates;
+
+      if (!Array.isArray(coordinates) || coordinates.length < 2) {
+        throw new Error("Directions API khong tra ve du lieu tuyen hop le.");
+      }
+
+      return {
+        coordinates,
+        distance: Number(route.distance) || 0,
+        duration: Number(route.duration) || 0
+      };
+    }
+
+    function buildLoopCoordinates(forwardCoordinates, backwardCoordinates) {
+      const loopCoordinates = forwardCoordinates.concat(backwardCoordinates.slice(1));
+      if (loopCoordinates.length > 1 && coordinatesMatch(loopCoordinates[0], loopCoordinates[loopCoordinates.length - 1])) {
+        return loopCoordinates;
+      }
+
+      return loopCoordinates.concat([loopCoordinates[0]]);
+    }
+
+    function buildVehicleRouteMetrics(coordinates) {
+      const segmentLengths = [];
+      const cumulative = [0];
+      let totalLength = 0;
+
+      for (let index = 0; index < coordinates.length - 1; index += 1) {
+        const start = coordinates[index];
+        const end = coordinates[index + 1];
+        const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
+        totalLength += length;
+        segmentLengths.push(length);
+        cumulative.push(totalLength);
+      }
+
+      return {
+        cumulative,
+        segmentLengths,
+        totalLength: totalLength || 1
+      };
+    }
+
+    async function loadVehicleRoute(vehicle) {
+      const [forwardRoute, backwardRoute] = await Promise.all([
+        fetchDirectionsRoute(vehicle.origin, vehicle.destination),
+        fetchDirectionsRoute(vehicle.destination, vehicle.origin)
+      ]);
+
+      vehicle.routeCoordinates = buildLoopCoordinates(forwardRoute.coordinates, backwardRoute.coordinates);
+      vehicle.routeMetrics = buildVehicleRouteMetrics(vehicle.routeCoordinates);
+      vehicle.routeDistanceMeters = forwardRoute.distance + backwardRoute.distance;
+      vehicle.routeDurationSeconds = forwardRoute.duration + backwardRoute.duration;
+      vehicle.routeReady = true;
+      vehicle.routeError = "";
+    }
+
+    async function loadPatrolRoutes() {
+      const results = await Promise.allSettled(patrolVehicles.map(vehicle => loadVehicleRoute(vehicle)));
+      const loadedVehicles = [];
+
+      results.forEach((result, index) => {
+        const vehicle = patrolVehicles[index];
+        if (result.status === "fulfilled") {
+          loadedVehicles.push(vehicle);
+          return;
+        }
+
+        vehicle.routeReady = false;
+        vehicle.routeError = "Khong tai duoc tuyen duong that tu Directions API.";
+      });
+
+      if (!loadedVehicles.length) {
+        throw new Error("Khong the tai bat ky tuyen tuan tra nao.");
+      }
+
+      return loadedVehicles;
+    }
+
+    function renderCounts() {
+      const openCount = dispatchReports.filter(report => report.status !== "done").length;
+      queueCounter.textContent = `${openCount.toString().padStart(2, "0")} báo cáo chờ xử lý`;
+    }
+
+    function renderReportList() {
+      const items = sortReports(dispatchReports);
+      reportList.innerHTML = items.map(report => `
+        <article class="report-item ${report.id === state.selectedReportId ? "active" : ""}" data-report-id="${escapeHtml(report.id)}">
+          <div class="report-item-top">
+            <div>
+              <strong>${escapeHtml(report.incidentType)}</strong>
+              <span>${escapeHtml(report.address)} • ${escapeHtml(report.receivedAt)}</span>
+            </div>
+            <span class="priority-pill ${getPriorityClass(report.priority)}">${escapeHtml(report.priority)}</span>
+          </div>
+          <div class="card-top">
+            <span>${escapeHtml(report.name)}</span>
+            <span class="status-chip ${getStatusClass(report.status)}">${escapeHtml(reportStatusMap[report.status])}</span>
+          </div>
+          <span>${escapeHtml(report.description)}</span>
+        </article>
+      `).join("");
+
+      reportList.querySelectorAll("[data-report-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          state.selectedReportId = item.dataset.reportId;
+          renderDispatchState();
+          focusReportOnMap(getSelectedReport());
+        });
+      });
+    }
+
+    function renderReportDetails() {
+      const report = getSelectedReport();
+      detailStatusChip.className = `status-chip ${getStatusClass(report.status)}`;
+      detailStatusChip.textContent = reportStatusMap[report.status];
+
+      reportDetails.innerHTML = `
+        <div><dt>Họ tên</dt><dd>${escapeHtml(report.name)}</dd></div>
+        <div><dt>Địa chỉ</dt><dd>${escapeHtml(report.address)}</dd></div>
+        <div><dt>Tài khoản</dt><dd>${report.verified ? "Đã xác thực" : "Chưa xác thực"}</dd></div>
+        <div><dt>Loại sự cố</dt><dd>${escapeHtml(report.incidentType)}</dd></div>
+        <div><dt>Mức độ ưu tiên</dt><dd>${escapeHtml(report.priority)}</dd></div>
+        <div><dt>Mô tả</dt><dd>${escapeHtml(report.description)}</dd></div>
+        <div><dt>Mã báo cáo</dt><dd>${escapeHtml(report.id)}</dd></div>
+      `;
+
+      callUserName.textContent = report.name;
+      callUserMeta.textContent = `SĐT ${report.phone} • ${report.address}`;
+      callIncidentType.textContent = `Loại sự cố: ${report.incidentType}`;
+      callPriorityPill.className = `priority-pill ${getPriorityClass(report.priority)}`;
+      callPriorityPill.textContent = report.priority;
+      callerPhone.value = report.phone;
+      priorityLevel.value = report.priority;
+      handoffTo.value = reportStatusMap[report.status];
+      callSummary.value = report.description;
+    }
+
+    function getVehicleTravelState(vehicle) {
+      if (!vehicle.routeReady || !Array.isArray(vehicle.routeCoordinates) || vehicle.routeCoordinates.length < 2) {
+        return {
+          heading: vehicle.lastHeading || 0,
+          position: vehicle.origin
+        };
+      }
+
+      if (!vehicle.routeMetrics) {
+        vehicle.routeMetrics = buildVehicleRouteMetrics(vehicle.routeCoordinates);
+      }
+
+      const { segmentLengths, cumulative, totalLength } = vehicle.routeMetrics;
+      const targetDistance = (vehicle.progress % 1) * totalLength;
+      let segmentIndex = 0;
+
+      while (segmentIndex < segmentLengths.length - 1 && cumulative[segmentIndex + 1] < targetDistance) {
+        segmentIndex += 1;
+      }
+
+      const segmentStartDistance = cumulative[segmentIndex];
+      const segmentLength = segmentLengths[segmentIndex] || 1;
+      const segmentProgress = (targetDistance - segmentStartDistance) / segmentLength;
+      const start = vehicle.routeCoordinates[segmentIndex];
+      const end = vehicle.routeCoordinates[Math.min(segmentIndex + 1, vehicle.routeCoordinates.length - 1)];
+      const position = [
+        start[0] + (end[0] - start[0]) * segmentProgress,
+        start[1] + (end[1] - start[1]) * segmentProgress
+      ];
+
+      if (!coordinatesMatch(start, end)) {
+        vehicle.lastHeading = turf.bearing(turf.point(start), turf.point(end));
+      }
+
+      return {
+        heading: vehicle.lastHeading || 0,
+        position
+      };
+    }
+
+    function getVehiclePosition(vehicle) {
+      return getVehicleTravelState(vehicle).position;
+    }
+
+    function getNearestVehicle(report) {
+      const readyVehicles = patrolVehicles.filter(vehicle => vehicle.routeReady);
+      if (!readyVehicles.length) {
+        return null;
+      }
+
+      let nearestVehicle = null;
+      let minDistance = Number.POSITIVE_INFINITY;
+
+      readyVehicles.forEach(vehicle => {
+        const [lng, lat] = getVehiclePosition(vehicle);
+        const distance = Math.hypot(lng - report.coordinates[0], lat - report.coordinates[1]);
+        if (distance < minDistance) {
+          minDistance = distance;
+          nearestVehicle = vehicle;
+        }
+      });
+
+      return nearestVehicle;
+    }
+
+    function renderDispatchSuggestion() {
+      const report = getSelectedReport();
+      const nearestVehicle = getNearestVehicle(report);
+      const vehiclePosition = nearestVehicle ? getVehiclePosition(nearestVehicle) : null;
+      const suggestionText = nearestVehicle
+        ? `Đơn vị gần nhất: ${nearestVehicle.id} • ${nearestVehicle.unit}. Vị trí hiện tại gần ${vehiclePosition[1].toFixed(4)}, ${vehiclePosition[0].toFixed(4)} và sẵn sàng tiếp cận ${report.address}.`
+        : "Đơn vị gần nhất: Chưa có dữ liệu tổ tuần tra.";
+
+      dispatchSuggestion.textContent = suggestionText;
+      dispatchOverlayStatus.innerHTML = `
+        <strong>Điều phối hiện tại</strong>
+        <div class="hint-text">${escapeHtml(report.incidentType)} • ${escapeHtml(report.address)} • ${escapeHtml(reportStatusMap[report.status])}</div>
+      `;
+    }
+
+    function renderDispatchState() {
+      renderCounts();
+      renderReportList();
+      renderReportDetails();
+      renderDispatchSuggestion();
+      syncDispatchMarkers();
+    }
+
+    async function loadBoundaryGeoJson() {
+      const candidates = [
+        "./data/hcm-boundary.geojson",
+        "../hcm-boundary.geojson"
+      ];
+
+      for (const path of candidates) {
+        try {
+          const response = await fetch(path);
+          if (response.ok) {
+            return await response.json();
+          }
+        } catch {
+        }
+      }
+
+      throw new Error("Không thể tải dữ liệu ranh giới TP.HCM.");
+    }
+
+    function createReportMarker(report) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = `report-dot ${getStatusClass(report.status)}`;
+      element.title = `${report.incidentType} - ${report.address}`;
+      element.addEventListener("click", event => {
+        event.stopPropagation();
+        state.selectedReportId = report.id;
+        renderDispatchState();
+        openDispatchPopup(report);
+      });
+      return element;
+    }
+
+    function openDispatchPopup(report) {
+      if (!dispatchMap) {
+        return;
+      }
+
+      if (!dispatchPopup) {
+        dispatchPopup = new mapboxgl.Popup({ offset: 18 });
+      }
+
+      dispatchPopup
+        .setLngLat(report.coordinates)
+        .setHTML(`
+          <div class="popup-title">${escapeHtml(report.incidentType)}</div>
+          <div class="popup-copy">${escapeHtml(report.address)}<br>${escapeHtml(report.name)} • ${report.verified ? "Đã xác thực" : "Chưa xác thực"}<br>${escapeHtml(reportStatusMap[report.status])}</div>
+        `)
+        .addTo(dispatchMap);
+    }
+
+    function syncDispatchMarkers() {
+      if (!dispatchMap) {
+        return;
+      }
+
+      dispatchReports.forEach(report => {
+        let marker = dispatchMarkers.get(report.id);
+        if (!marker) {
+          marker = new mapboxgl.Marker({
+            element: createReportMarker(report),
+            anchor: "center"
+          })
+            .setLngLat(report.coordinates)
+            .addTo(dispatchMap);
+          dispatchMarkers.set(report.id, marker);
+        } else {
+          marker.setLngLat(report.coordinates);
+          marker.getElement().className = `report-dot ${getStatusClass(report.status)}`;
+          marker.getElement().title = `${report.incidentType} - ${report.address}`;
+        }
+      });
+    }
+
+    function focusReportOnMap(report) {
+      if (!dispatchMap || !report) {
+        return;
+      }
+
+      dispatchMap.easeTo({
+        center: report.coordinates,
+        zoom: 13.9,
+        duration: 900
+      });
+
+      openDispatchPopup(report);
+    }
+
+    function initDispatchMap() {
+      dispatchMap = new mapboxgl.Map({
+        container: "dispatchMap",
+        style: "mapbox://styles/mapbox/dark-v11",
+        center: [106.7009, 10.7769],
+        zoom: 10.8,
+        pitch: 46,
+        bearing: -18,
+        antialias: true
+      });
+
+      dispatchMap.addControl(new mapboxgl.NavigationControl(), "top-left");
+
+      dispatchMap.on("load", async () => {
+        try {
+          dispatchBoundaryData = await loadBoundaryGeoJson();
+          dispatchMap.addSource("hcm-boundary", {
+            type: "geojson",
+            data: dispatchBoundaryData
+          });
+
+          dispatchMap.addLayer({
+            id: "hcm-boundary-fill",
+            type: "fill",
+            source: "hcm-boundary",
+            paint: {
+              "fill-color": "#60a5fa",
+              "fill-opacity": 0.08
+            }
+          });
+
+          dispatchMap.addLayer({
+            id: "hcm-boundary-line",
+            type: "line",
+            source: "hcm-boundary",
+            paint: {
+              "line-color": "#93c5fd",
+              "line-width": 2.4,
+              "line-opacity": 0.95
+            }
+          });
+        } catch {
+          dispatchOverlayStatus.innerHTML = `
+            <strong>Điều phối hiện tại</strong>
+            <div class="hint-text">Không tải được ranh giới khu vực, nhưng dữ liệu báo cáo vẫn hoạt động.</div>
+          `;
+        }
+
+        syncDispatchMarkers();
+        focusReportOnMap(getSelectedReport());
+      });
+    }
+
+    function createVehicleMarker(vehicle) {
+      const element = document.createElement("button");
+      element.type = "button";
+      element.className = "vehicle-icon";
+      element.setAttribute("aria-label", `${vehicle.id} - ${vehicle.unit}`);
+      element.title = `${vehicle.id} - ${vehicle.unit}`;
+      element.innerHTML = `
+        <svg viewBox="0 0 64 64" aria-hidden="true">
+          <path fill="#e2e8f0" d="M23 7h18l7 12v24c0 3.3-2.7 6-6 6h-2v8h-8v-8H22v8h-8v-8h-2c-3.3 0-6-2.7-6-6V19l7-12h10z"/>
+          <path fill="#60a5fa" d="M25 12h14l4 7H21l4-7z"/>
+          <path fill="#f8fafc" d="M18 24h28c3.3 0 6 2.7 6 6v7H12v-7c0-3.3 2.7-6 6-6z"/>
+          <path fill="#ef4444" d="M24 28h16v5H24z"/>
+          <circle cx="20" cy="43" r="5" fill="#0f172a"/>
+          <circle cx="44" cy="43" r="5" fill="#0f172a"/>
+        </svg>
+      `;
+      element.addEventListener("click", event => {
+        event.stopPropagation();
+        state.selectedVehicleId = vehicle.id;
+        renderVehicleState();
+        focusVehicleOnMap(vehicle);
+      });
+      return element;
+    }
+
+    function openVehiclePopup(vehicle) {
+      if (!patrolMap) {
+        return;
+      }
+
+      const { position } = getVehicleTravelState(vehicle);
+
+      if (!patrolPopup) {
+        patrolPopup = new mapboxgl.Popup({ offset: 18 });
+      }
+
+      patrolPopup
+        .setLngLat(position)
+        .setHTML(`
+          <div class="popup-title">${escapeHtml(vehicle.id)}</div>
+          <div class="popup-copy">Khu vực: ${escapeHtml(vehicle.area)}<br>Trạng thái: ${escapeHtml(vehicle.status)}</div>
+        `)
+        .addTo(patrolMap);
+    }
+
+    function renderVehicleList() {
+      vehicleList.innerHTML = patrolVehicles.map(vehicle => {
+        const [lng, lat] = getVehiclePosition(vehicle);
+        const routeMeta = vehicle.routeReady
+          ? `${(vehicle.routeDistanceMeters / 1000).toFixed(1)} km`
+          : (vehicle.routeError || "Dang tai route");
+        return `
+          <article class="vehicle-card ${vehicle.id === state.selectedVehicleId ? "active" : ""}" data-vehicle-id="${escapeHtml(vehicle.id)}">
+            <div class="card-top">
+              <div>
+                <strong>${escapeHtml(vehicle.id)}</strong>
+                <span>${escapeHtml(vehicle.unit)}</span>
+              </div>
+              <span class="status-chip processing">Đang hoạt động</span>
+            </div>
+            <span>${escapeHtml(vehicle.area)}</span><br>
+            <span>${escapeHtml(vehicle.status)}</span><br>
+            <span>Tuyến: ${routeMeta}</span><br>
+            <span>Vị trí: ${lat.toFixed(4)}, ${lng.toFixed(4)}</span>
+          </article>
+        `;
+      }).join("");
+
+      vehicleList.querySelectorAll("[data-vehicle-id]").forEach(item => {
+        item.addEventListener("click", () => {
+          state.selectedVehicleId = item.dataset.vehicleId;
+          renderVehicleState();
+          focusVehicleOnMap(getSelectedVehicle());
+        });
+      });
+    }
+
+    function renderVehicleDetails() {
+      const vehicle = getSelectedVehicle();
+      const [lng, lat] = getVehiclePosition(vehicle);
+      vehicleDetails.innerHTML = `
+        <div><dt>Mã xe</dt><dd>${escapeHtml(vehicle.id)}</dd></div>
+        <div><dt>Khu vực tuần tra</dt><dd>${escapeHtml(vehicle.area)}</dd></div>
+        <div><dt>Đơn vị</dt><dd>${escapeHtml(vehicle.unit)}</dd></div>
+        <div><dt>Trạng thái</dt><dd>${escapeHtml(vehicle.status)}</dd></div>
+        <div><dt>Vị trí hiện tại</dt><dd>${lat.toFixed(4)}, ${lng.toFixed(4)}</dd></div>
+        <div><dt>Độ dài tuyến</dt><dd>${vehicle.routeReady ? `${(vehicle.routeDistanceMeters / 1000).toFixed(1)} km` : (vehicle.routeError || "Đang tải tuyến")}</dd></div>
+        <div><dt>Mức cập nhật</dt><dd>${vehicle.routeReady ? "Directions API + thời gian thực" : (vehicle.routeError || "Đang tải Directions API")}</dd></div>
+      `;
+
+      patrolOverlayStatus.innerHTML = `
+        <strong>Xe đang theo dõi</strong>
+        <div class="hint-text">${escapeHtml(vehicle.id)} • ${escapeHtml(vehicle.area)} • ${escapeHtml(vehicle.status)}</div>
+      `;
+    }
+
+    function renderVehicleState() {
+      renderVehicleList();
+      renderVehicleDetails();
+      syncVehicleMarkers();
+    }
+
+    function syncVehicleMarkers() {
+      if (!patrolMap) {
+        return;
+      }
+
+      patrolVehicles.forEach(vehicle => {
+        const { position, heading } = getVehicleTravelState(vehicle);
+        let marker = vehicleMarkers.get(vehicle.id);
+        if (!marker) {
+          marker = new mapboxgl.Marker({
+            element: createVehicleMarker(vehicle),
+            anchor: "center"
+          })
+            .setLngLat(position)
+            .addTo(patrolMap);
+          vehicleMarkers.set(vehicle.id, marker);
+        } else {
+          marker.setLngLat(position);
+          marker.getElement().title = `${vehicle.id} - ${vehicle.unit}`;
+        }
+
+        marker.getElement().style.setProperty("--vehicle-rotation", `${heading}deg`);
+      });
+    }
+
+    function getPatrolRouteFeatureCollection() {
+      return {
+        type: "FeatureCollection",
+        features: patrolVehicles
+          .filter(vehicle => vehicle.routeReady && Array.isArray(vehicle.routeCoordinates) && vehicle.routeCoordinates.length > 1)
+          .map(vehicle => ({
+            type: "Feature",
+            properties: {
+              area: vehicle.area,
+              id: vehicle.id
+            },
+            geometry: {
+              type: "LineString",
+              coordinates: vehicle.routeCoordinates
+            }
+          }))
+      };
+    }
+
+    function focusVehicleOnMap(vehicle) {
+      if (!patrolMap || !vehicle) {
+        return;
+      }
+
+      patrolMap.easeTo({
+        center: getVehiclePosition(vehicle),
+        zoom: 14.4,
+        pitch: 64,
+        bearing: -24,
+        duration: 900
+      });
+
+      openVehiclePopup(vehicle);
+    }
+
+    function addPatrolRoutes() {
+      if (!patrolMap) {
+        return;
+      }
+
+      patrolMap.addSource("patrol-routes", {
+        type: "geojson",
+        data: getPatrolRouteFeatureCollection()
+      });
+
+      patrolMap.addLayer({
+        id: "patrol-routes-glow",
+        type: "line",
+        source: "patrol-routes",
+        layout: {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        paint: {
+          "line-blur": 1.4,
+          "line-color": "#60a5fa",
+          "line-opacity": 0.2,
+          "line-width": 7
+        }
+      });
+
+      patrolMap.addLayer({
+        id: "patrol-routes-line",
+        type: "line",
+        source: "patrol-routes",
+        layout: {
+          "line-cap": "round",
+          "line-join": "round"
+        },
+        paint: {
+          "line-color": "#60a5fa",
+          "line-width": 3,
+          "line-opacity": 0.8
+        }
+      });
+    }
+
+    function refreshPatrolRouteSource() {
+      if (!patrolMap) {
+        return;
+      }
+
+      const source = patrolMap.getSource("patrol-routes");
+      if (source) {
+        source.setData(getPatrolRouteFeatureCollection());
+      }
+    }
+
+    function initPatrolMap() {
+      patrolMap = new mapboxgl.Map({
+        container: "patrolMap",
+        style: "mapbox://styles/mapbox/dark-v11",
+        center: [106.712, 10.781],
+        zoom: 11.9,
+        pitch: 62,
+        bearing: -22,
+        antialias: true
+      });
+
+      patrolMap.addControl(new mapboxgl.NavigationControl(), "top-left");
+
+      patrolMap.on("load", () => {
+        const layers = patrolMap.getStyle().layers || [];
+        const labelLayer = layers.find(layer => layer.type === "symbol" && layer.layout && layer.layout["text-field"]);
+
+        patrolMap.addLayer(
+          {
+            id: "3d-buildings",
+            source: "composite",
+            "source-layer": "building",
+            filter: ["==", "extrude", "true"],
+            type: "fill-extrusion",
+            minzoom: 15,
+            paint: {
+              "fill-extrusion-color": [
+                "interpolate",
+                ["linear"],
+                ["get", "height"],
+                0, "#1e293b",
+                80, "#334155",
+                220, "#64748b"
+              ],
+              "fill-extrusion-height": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                15, 0,
+                15.05, ["get", "height"]
+              ],
+              "fill-extrusion-base": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                15, 0,
+                15.05, ["get", "min_height"]
+              ],
+              "fill-extrusion-opacity": 0.74
+            }
+          },
+          labelLayer ? labelLayer.id : undefined
+        );
+
+        addPatrolRoutes();
+        patrolOverlayStatus.innerHTML = `
+          <strong>Xe đang theo dõi</strong>
+          <div class="hint-text">Đang tải tuyến tuần tra thật từ Mapbox Directions API.</div>
+        `;
+
+        loadPatrolRoutes()
+          .then(() => {
+            patrolRoutesInitialized = true;
+            refreshPatrolRouteSource();
+            renderVehicleState();
+            syncVehicleMarkers();
+            focusVehicleOnMap(getSelectedVehicle());
+            renderDispatchSuggestion();
+            startPatrolAnimation();
+          })
+          .catch(() => {
+            patrolOverlayStatus.innerHTML = `
+              <strong>Xe đang theo dõi</strong>
+              <div class="hint-text">Không tải được tuyến đường tuần tra từ Directions API.</div>
+            `;
+            renderVehicleState();
+          });
+      });
+    }
+
+    function tickVehicleAnimation(timestamp) {
+      if (!patrolRoutesInitialized) {
+        patrolAnimationFrame = window.requestAnimationFrame(tickVehicleAnimation);
+        return;
+      }
+
+      if (!lastAnimationTimestamp) {
+        lastAnimationTimestamp = timestamp;
+      }
+
+      const deltaSeconds = Math.min((timestamp - lastAnimationTimestamp) / 1000, 0.08);
+      lastAnimationTimestamp = timestamp;
+
+      patrolVehicles.forEach(vehicle => {
+        vehicle.progress = (vehicle.progress + vehicle.speed * deltaSeconds) % 1;
+      });
+
+      if (patrolMap) {
+        syncVehicleMarkers();
+        if (!lastVehicleUiUpdate || timestamp - lastVehicleUiUpdate >= 700) {
+          renderVehicleList();
+          if (state.selectedVehicleId) {
+            renderVehicleDetails();
+          }
+          lastVehicleUiUpdate = timestamp;
+        }
+      }
+
+      if (dispatchMap) {
+        renderDispatchSuggestion();
+      }
+
+      patrolAnimationFrame = window.requestAnimationFrame(tickVehicleAnimation);
+    }
+
+    function startPatrolAnimation() {
+      if (patrolAnimationFrame) {
+        window.cancelAnimationFrame(patrolAnimationFrame);
+      }
+
+      lastAnimationTimestamp = 0;
+      lastVehicleUiUpdate = 0;
+      patrolAnimationFrame = window.requestAnimationFrame(tickVehicleAnimation);
+    }
+
+    function switchView(targetId) {
+      if (!VIEW_IDS.includes(targetId)) {
+        return;
+      }
+
+      state.activeView = targetId;
+      sessionStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, targetId);
+
+      VIEW_IDS.forEach(id => {
+        const view = document.getElementById(id);
+        view.classList.toggle("active", id === targetId);
+      });
+
+      viewMenuButtons.forEach(button => {
+        button.classList.toggle("active", button.dataset.viewTarget === targetId);
+      });
+
+      window.setTimeout(() => {
+        if (dispatchMap) {
+          dispatchMap.resize();
+        }
+        if (patrolMap) {
+          patrolMap.resize();
+        }
+      }, 120);
+    }
+
     acceptButton.addEventListener("click", () => {
-      queueCounter.textContent = "03 cuộc chờ xử lý";
-      setActionStatus("Đã tiếp nhận cuộc gọi và tạo phiếu hỗ trợ. Bạn có thể bổ sung ghi chú trước khi chuyển đội.");
+      const report = getSelectedReport();
+      report.status = "new";
+      handoffTo.value = reportStatusMap[report.status];
+      renderDispatchState();
+      setActionStatus(`Đã tiếp nhận báo cáo ${report.id} và đưa lên đầu hàng đợi xử lý.`);
+      openDispatchPopup(report);
     });
 
     handoffButton.addEventListener("click", () => {
-      queueCounter.textContent = "02 cuộc chờ xử lý";
-      setActionStatus("Đã chuyển thông tin sang kênh cảnh sát trực. Hệ thống giữ lại tóm tắt để đội tiếp nhận theo dõi.");
+      const report = getSelectedReport();
+      report.status = "processing";
+      handoffTo.value = reportStatusMap[report.status];
+      renderDispatchState();
+      setActionStatus(`Đã điều công an cho báo cáo ${report.id}. Gợi ý đơn vị gần nhất đã được cập nhật.`);
+      focusReportOnMap(report);
     });
 
     finishButton.addEventListener("click", () => {
-      setActionStatus("Cuộc gọi đã được kết thúc và lưu vào lịch sử thao tác của ca trực.");
+      const report = getSelectedReport();
+      report.status = "done";
+      handoffTo.value = reportStatusMap[report.status];
+      renderDispatchState();
+      setActionStatus(`Báo cáo ${report.id} đã được đánh dấu hoàn thành và lưu vào tiến trình ca trực.`);
+      openDispatchPopup(report);
+    });
+
+    focusNearestButton.addEventListener("click", () => {
+      const report = getSelectedReport();
+      const nearestVehicle = getNearestVehicle(report);
+      if (!nearestVehicle) {
+        setActionStatus("Không tìm thấy tổ tuần tra để gợi ý điều phối.");
+        return;
+      }
+
+      state.selectedVehicleId = nearestVehicle.id;
+      renderVehicleState();
+      switchView("patrolView");
+      focusVehicleOnMap(nearestVehicle);
+      setActionStatus(`Đã chuyển sang Trang Tuần Tra và chọn ${nearestVehicle.id} làm đơn vị gần nhất cho ${report.id}.`);
+    });
+
+    viewMenuButtons.forEach(button => {
+      button.addEventListener("click", () => switchView(button.dataset.viewTarget));
+    });
+
+    handoffTo.addEventListener("change", () => {
+      const report = getSelectedReport();
+      if (handoffTo.value === "Đã hoàn thành") {
+        report.status = "done";
+      } else if (handoffTo.value === "Đang điều công an") {
+        report.status = "processing";
+      } else {
+        report.status = "new";
+      }
+      renderDispatchState();
+    });
+
+    priorityLevel.addEventListener("change", () => {
+      const report = getSelectedReport();
+      report.priority = priorityLevel.value;
+      renderDispatchState();
+    });
+
+    callerPhone.addEventListener("change", () => {
+      const report = getSelectedReport();
+      report.phone = callerPhone.value.trim() || report.phone;
+      renderReportDetails();
+    });
+
+    callSummary.addEventListener("change", () => {
+      const report = getSelectedReport();
+      report.description = callSummary.value.trim() || report.description;
+      renderDispatchState();
     });
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
@@ -686,6 +2188,12 @@
       sessionStorage.removeItem("policeRole");
       window.location.href = "/";
     });
+
+    renderDispatchState();
+    renderVehicleState();
+    initDispatchMap();
+    initPatrolMap();
+    switchView(state.activeView);
 
     window.requestAnimationFrame(() => {
       document.body.classList.add("ready");
