@@ -2155,15 +2155,18 @@
           throw new Error(payload.message || "Không thể gửi báo cáo.");
         }
 
-        if (payload.incident) {
-          rememberTrackedIncident(payload.incident);
+        const syncedIncident = payload.incident || payload.Incident;
+        const syncedAnalysis = payload.analysis || payload.Analysis;
+
+        if (syncedIncident) {
+          rememberTrackedIncident(syncedIncident);
         }
 
-        if (payload.analysis) {
-          analysisSummary.textContent = `${payload.analysis.Category} | ${getDangerLevelLabel(payload.analysis.Level)} | Diem ${payload.analysis.UrgencyScore}. ${payload.analysis.Recommendation}`;
+        if (syncedAnalysis) {
+          analysisSummary.textContent = `${syncedAnalysis.Category || syncedAnalysis.category} | ${getDangerLevelLabel(syncedAnalysis.Level || syncedAnalysis.level)} | Diem ${syncedAnalysis.UrgencyScore ?? syncedAnalysis.urgencyScore}. ${syncedAnalysis.Recommendation || syncedAnalysis.recommendation}`;
         }
 
-        reportStatus.textContent = `Đã lưu cục bộ và gửi báo cáo "${type}" thành công lên hệ thống. ${payload.analysis?.ShouldCallEmergency ? "He thong danh gia day la muc khan cap cao." : ""}`;
+        reportStatus.textContent = `Đã lưu cục bộ và gửi báo cáo "${type}" thành công lên hệ thống. ${syncedAnalysis?.ShouldCallEmergency || syncedAnalysis?.shouldCallEmergency ? "He thong danh gia day la muc khan cap cao." : ""}`;
       } catch (error) {
         reportStatus.textContent = `Báo cáo "${type}" đã được lưu cục bộ thành công. ${error.message || "Đồng bộ lên hệ thống chưa khả dụng."}`;
       } finally {

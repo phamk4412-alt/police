@@ -1051,8 +1051,9 @@
         }
 
         showLiveAlert(`Đã cập nhật trạng thái: ${status}`);
-        if (payload.incident) {
-          upsertReport(payload.incident);
+        const updatedIncident = payload.incident || payload.Incident;
+        if (updatedIncident) {
+          upsertReport(updatedIncident);
           rerenderLiveReports();
         }
         await new Promise((resolve) => window.setTimeout(resolve, 150));
@@ -1112,7 +1113,45 @@
       reports.sort((left, right) => new Date(right.CreatedAt).getTime() - new Date(left.CreatedAt).getTime());
     }
 
+    function normalizeIncident(raw) {
+      if (!raw) {
+        return null;
+      }
+
+      return {
+        Id: raw.Id || raw.id,
+        Title: raw.Title || raw.title || "Bao cao moi",
+        Detail: raw.Detail || raw.detail || "Nguoi dung vua gui bao cao.",
+        Category: raw.Category || raw.category || "Can xac minh",
+        Level: raw.Level || raw.level || "high",
+        UrgencyScore: raw.UrgencyScore ?? raw.urgencyScore ?? 0,
+        ClassificationReason: raw.ClassificationReason || raw.classificationReason || "",
+        Latitude: Number(raw.Latitude ?? raw.latitude),
+        Longitude: Number(raw.Longitude ?? raw.longitude),
+        District: raw.District || raw.district || "TP.HCM",
+        TimeLabel: raw.TimeLabel || raw.timeLabel || "--:--",
+        Status: raw.Status || raw.status || "Moi tiep nhan",
+        Source: raw.Source || raw.source || "user",
+        ReporterName: raw.ReporterName || raw.reporterName || "Nguoi dung",
+        LastUpdatedBy: raw.LastUpdatedBy || raw.lastUpdatedBy || "",
+        InternalNote: raw.InternalNote || raw.internalNote || "",
+        CreatedAt: raw.CreatedAt || raw.createdAt || new Date().toISOString(),
+        UpdatedAt: raw.UpdatedAt || raw.updatedAt || raw.CreatedAt || raw.createdAt || new Date().toISOString()
+      };
+    }
+
+    function normalizeIncidents(rawReports) {
+      return (Array.isArray(rawReports) ? rawReports : [])
+        .map(normalizeIncident)
+        .filter((report) => report?.Id && Number.isFinite(report.Latitude) && Number.isFinite(report.Longitude));
+    }
+
     function upsertReport(report) {
+      report = normalizeIncident(report);
+      if (!report?.Id) {
+        return;
+      }
+
       const existingIndex = currentReports.findIndex((item) => item.Id === report.Id);
       if (existingIndex >= 0) {
         currentReports[existingIndex] = report;
@@ -1225,10 +1264,10 @@
             throw new Error(payload.message || "Không tải được dữ liệu vụ việc từ máy chủ.");
           }
 
-          const reports = await readApiPayload(response);
+          const reports = normalizeIncidents(await readApiPayload(response));
           const newReports = reports.filter((report) => !seenReportIds.has(report.Id));
 
-          currentReports = Array.isArray(reports) ? reports.slice() : [];
+          currentReports = reports.slice();
           sortReports(currentReports);
           currentReports.forEach((report) => seenReportIds.add(report.Id));
           renderLiveReports(currentReports);
@@ -1278,11 +1317,15 @@
           .withAutomaticReconnect()
           .build();
 
-        incidentHubConnection.on("IncidentCreated", async () => {
+        incidentHubConnection.on("IncidentCreated", async (incident) => {
+          upsertReport(incident);
+          rerenderLiveReports();
           await refreshLiveReports();
         });
 
-        incidentHubConnection.on("IncidentUpdated", async () => {
+        incidentHubConnection.on("IncidentUpdated", async (incident) => {
+          upsertReport(incident);
+          rerenderLiveReports();
           await refreshLiveReports();
         });
 
