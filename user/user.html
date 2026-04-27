@@ -7,6 +7,7 @@
 
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script src="../app-config.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
 
@@ -1026,6 +1027,15 @@
     const API_BASE = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
     const TRACKED_INCIDENT_STORAGE_KEY = "POLICE_LAST_TRACKED_INCIDENT_ID";
     const USER_LOCATION_SESSION_KEY = "userLocation";
+    const HOME_POI_SOURCE = "composite";
+    const HOME_POI_SOURCE_LAYER = "poi_label";
+    const POI_LOAD_ZOOM = 14;
+    const HOME_EMERGENCY_SOURCE_ID = "home-emergency-pois";
+    const HOME_EMERGENCY_CIRCLE_LAYER_ID = "home-emergency-pois-circle";
+    const HOME_EMERGENCY_ICON_LAYER_ID = "home-emergency-pois-icon";
+    const MAIN_EMERGENCY_SOURCE_ID = "main-emergency-pois";
+    const MAIN_EMERGENCY_CIRCLE_LAYER_ID = "main-emergency-pois-circle";
+    const MAIN_EMERGENCY_ICON_LAYER_ID = "main-emergency-pois-icon";
     let trackedIncidentId = "";
     let incidentHubConnection;
 
@@ -1154,6 +1164,10 @@
     let userLocation = null;
     let userMarkerMain = null;
     let userMarkerMini = null;
+    let hcmBoundaryData = null;
+    let homeEmergencyPois = [];
+    let mainEmergencyPois = [];
+    let emergencyPoiPopup = null;
 
     const state = {
       mapMode: "normal",
@@ -1243,6 +1257,328 @@
 
     function getDangerWeight(level) {
       return DANGER_LEVELS[level]?.weight || DANGER_LEVELS.low.weight;
+    }
+
+    function getEmergencyPoiType(properties) {
+      const className = String(properties.class || "").toLowerCase();
+      const maki = String(properties.maki || properties.maki_beta || "").toLowerCase();
+      const name = String(properties.name_vi || properties.name || properties.name_en || "").toLowerCase();
+      const category = String(properties.category_en || properties.type || "").toLowerCase();
+
+      const isPolice =
+        maki.includes("police") ||
+        name.includes("công an") ||
+        category.includes("police");
+
+      if (isPolice) {
+        return "police";
+      }
+
+      const isHospital =
+        maki.includes("hospital") ||
+        className === "medical" ||
+        category.includes("hospital") ||
+        category.includes("clinic") ||
+        name.includes("bệnh viện") ||
+        name.includes("clinic");
+
+      if (isHospital) {
+        return "hospital";
+      }
+
+      return "";
+    }
+
+    function getEmergencyPoiLabel(properties) {
+      return properties.name_vi || properties.name || properties.name_en || "Địa điểm hỗ trợ";
+    }
+
+    function getEmergencyPoiAddress(properties) {
+      return (
+        properties.address ||
+        properties.full_address ||
+        properties.place_formatted ||
+        properties.name ||
+        "Chưa có địa chỉ chi tiết"
+      );
+    }
+
+    function isPointInsideHcmBoundary(longitude, latitude) {
+      if (!hcmBoundaryData || typeof turf === "undefined") {
+        return false;
+      }
+
+      const point = turf.point([longitude, latitude]);
+
+      if (hcmBoundaryData.type === "FeatureCollection") {
+        return hcmBoundaryData.features.some(feature => turf.booleanPointInPolygon(point, feature));
+      }
+
+      if (hcmBoundaryData.type === "Feature") {
+        return turf.booleanPointInPolygon(point, hcmBoundaryData);
+      }
+
+      return turf.booleanPointInPolygon(point, turf.feature(hcmBoundaryData));
+    }
+
+    function collectEmergencyPois(mapInstance) {
+      if (!mapInstance || !hcmBoundaryData || !mapInstance.getSource(HOME_POI_SOURCE)) {
+        return [];
+      }
+
+      const seen = new Set();
+      const features = mapInstance.querySourceFeatures(HOME_POI_SOURCE, {
+        sourceLayer: HOME_POI_SOURCE_LAYER
+      });
+
+      return features.reduce((items, feature) => {
+        if (feature.geometry?.type !== "Point") {
+          return items;
+        }
+
+        const [longitude, latitude] = feature.geometry.coordinates;
+        const poiType = getEmergencyPoiType(feature.properties || {});
+
+        if (!poiType || !isPointInsideHcmBoundary(longitude, latitude)) {
+          return items;
+        }
+
+        const name = getEmergencyPoiLabel(feature.properties || {});
+        const dedupeKey = `${poiType}:${name}:${longitude.toFixed(5)}:${latitude.toFixed(5)}`;
+        if (seen.has(dedupeKey)) {
+          return items;
+        }
+
+        seen.add(dedupeKey);
+        items.push({
+          type: poiType,
+          name,
+          address: getEmergencyPoiAddress(feature.properties || {}),
+          icon: poiType === "police" ? "police" : "hospital",
+          coordinates: [longitude, latitude]
+        });
+        return items;
+      }, []);
+    }
+
+    function toEmergencyPoiFeatureCollection(pois) {
+      return {
+        type: "FeatureCollection",
+        features: pois.map(poi => ({
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: poi.coordinates
+          },
+          properties: {
+            type: poi.type,
+            name: poi.name,
+            address: poi.address,
+            icon: poi.icon
+          }
+        }))
+      };
+    }
+
+    function shouldLoadEmergencyPois(mapInstance) {
+      return Boolean(mapInstance && mapInstance.getZoom() >= POI_LOAD_ZOOM);
+    }
+
+    function ensureEmergencyPoiLayers(mapInstance, sourceId, circleLayerId, iconLayerId, beforeLayerId) {
+      if (!mapInstance.getSource(sourceId)) {
+        mapInstance.addSource(sourceId, {
+          type: "geojson",
+          data: toEmergencyPoiFeatureCollection([])
+        });
+      }
+
+      if (!mapInstance.getLayer(circleLayerId)) {
+        mapInstance.addLayer(
+          {
+            id: circleLayerId,
+            type: "circle",
+            source: sourceId,
+            minzoom: POI_LOAD_ZOOM,
+            paint: {
+              "circle-radius": 0.01,
+              "circle-color": [
+                "match",
+                ["get", "type"],
+                "police", "#2563eb",
+                "hospital", "#ef4444",
+                "#94a3b8"
+              ],
+              "circle-stroke-color": "rgba(255,255,255,0.72)",
+              "circle-stroke-width": 1
+            }
+          },
+          beforeLayerId
+        );
+      }
+
+      if (!mapInstance.getLayer(iconLayerId)) {
+        mapInstance.addLayer(
+          {
+            id: iconLayerId,
+            type: "symbol",
+            source: sourceId,
+            minzoom: POI_LOAD_ZOOM,
+            layout: {
+              "icon-image": ["concat", ["get", "icon"], "-15"],
+              "icon-size": [
+                "interpolate",
+                ["linear"],
+                ["zoom"],
+                POI_LOAD_ZOOM, 0.9,
+                16, 1.2
+              ],
+              "icon-allow-overlap": true,
+              "text-field": ""
+            }
+          },
+          beforeLayerId
+        );
+      }
+    }
+
+    function setEmergencyPoiSourceData(mapInstance, sourceId, pois) {
+      const source = mapInstance.getSource(sourceId);
+      if (!source) {
+        return;
+      }
+
+      source.setData(toEmergencyPoiFeatureCollection(pois));
+    }
+
+    function clearEmergencyPois(mapInstance, sourceId) {
+      if (!mapInstance) {
+        return;
+      }
+
+      setEmergencyPoiSourceData(mapInstance, sourceId, []);
+    }
+
+    function formatPoiDistance(coordinates) {
+      if (!userLocation || typeof turf === "undefined") {
+        return "Chưa có vị trí hiện tại";
+      }
+
+      const from = turf.point(userLocation);
+      const to = turf.point(coordinates);
+      const distanceKm = turf.distance(from, to, { units: "kilometers" });
+      return `${distanceKm.toFixed(distanceKm >= 10 ? 0 : 1)} km`;
+    }
+
+    function openEmergencyPoiPopup(mapInstance, poi) {
+      if (!mapInstance) {
+        return;
+      }
+
+      if (emergencyPoiPopup) {
+        emergencyPoiPopup.remove();
+      }
+
+      emergencyPoiPopup = new mapboxgl.Popup({ offset: 16 })
+        .setLngLat(poi.coordinates)
+        .setHTML(`
+          <div class="popup-title">${poi.name}</div>
+          <div class="popup-meta">${poi.type === "police" ? "Công an" : "Bệnh viện"}</div>
+          <div class="popup-desc">${poi.address}</div>
+          <div class="popup-desc">Cách bạn: ${formatPoiDistance(poi.coordinates)}</div>
+        `)
+        .addTo(mapInstance);
+    }
+
+    function attachEmergencyPoiPopupHandlers(mapInstance, circleLayerId, iconLayerId) {
+      const openFromFeature = event => {
+        const feature = event.features && event.features[0];
+        if (!feature) {
+          return;
+        }
+
+        openEmergencyPoiPopup(mapInstance, {
+          type: feature.properties.type,
+          name: feature.properties.name,
+          address: feature.properties.address,
+          coordinates: feature.geometry.coordinates.slice()
+        });
+      };
+
+      mapInstance.on("click", circleLayerId, openFromFeature);
+      mapInstance.on("click", iconLayerId, openFromFeature);
+
+      mapInstance.on("mouseenter", circleLayerId, () => {
+        mapInstance.getCanvas().style.cursor = "pointer";
+      });
+
+      mapInstance.on("mouseenter", iconLayerId, () => {
+        mapInstance.getCanvas().style.cursor = "pointer";
+      });
+
+      mapInstance.on("mouseleave", circleLayerId, () => {
+        mapInstance.getCanvas().style.cursor = "";
+      });
+
+      mapInstance.on("mouseleave", iconLayerId, () => {
+        mapInstance.getCanvas().style.cursor = "";
+      });
+    }
+
+    function syncHomeEmergencyPois() {
+      if (!shouldLoadEmergencyPois(homeMap)) {
+        homeEmergencyPois = [];
+        clearEmergencyPois(homeMap, HOME_EMERGENCY_SOURCE_ID);
+        if (emergencyPoiPopup) {
+          emergencyPoiPopup.remove();
+          emergencyPoiPopup = null;
+        }
+        return;
+      }
+
+      const nextPois = collectEmergencyPois(homeMap);
+      const currentKey = JSON.stringify(homeEmergencyPois.map(item => `${item.type}:${item.name}:${item.coordinates.join(",")}`));
+      const nextKey = JSON.stringify(nextPois.map(item => `${item.type}:${item.name}:${item.coordinates.join(",")}`));
+
+      if (currentKey === nextKey) {
+        return;
+      }
+
+      homeEmergencyPois = nextPois;
+      setEmergencyPoiSourceData(homeMap, HOME_EMERGENCY_SOURCE_ID, homeEmergencyPois);
+    }
+
+    function hideMainEmergencyPois() {
+      mainEmergencyPois = [];
+      if (mainMapReady) {
+        clearEmergencyPois(mainMap, MAIN_EMERGENCY_SOURCE_ID);
+      }
+      if (emergencyPoiPopup) {
+        emergencyPoiPopup.remove();
+        emergencyPoiPopup = null;
+      }
+    }
+
+    function syncMainEmergencyPois() {
+      if (!mainMapReady || state.mapMode !== "normal") {
+        hideMainEmergencyPois();
+        return;
+      }
+
+      if (!shouldLoadEmergencyPois(mainMap)) {
+        hideMainEmergencyPois();
+        return;
+      }
+
+      const nextPois = collectEmergencyPois(mainMap);
+      const currentKey = JSON.stringify(mainEmergencyPois.map(item => `${item.type}:${item.name}:${item.coordinates.join(",")}`));
+      const nextKey = JSON.stringify(nextPois.map(item => `${item.type}:${item.name}:${item.coordinates.join(",")}`));
+
+      if (currentKey === nextKey) {
+        return;
+      }
+
+      mainEmergencyPois = nextPois;
+      setEmergencyPoiSourceData(mainMap, MAIN_EMERGENCY_SOURCE_ID, mainEmergencyPois);
     }
 
     function getLevelFromIncidentType(type) {
@@ -2126,6 +2462,11 @@
       syncToolbarState();
       updateCrimeSourceData();
       setCrimeLayersVisibility(state.mapMode === "crime");
+      if (state.mapMode === "normal") {
+        syncMainEmergencyPois();
+      } else {
+        hideMainEmergencyPois();
+      }
       renderStatistics();
       renderNearbyDanger();
     }
@@ -2146,6 +2487,7 @@
       homeMap.on("load", async () => {
         try {
           const boundaryData = await loadBoundaryGeoJson();
+          hcmBoundaryData = boundaryData;
 
           homeMap.addSource("hcm-boundary", {
             type: "geojson",
@@ -2214,7 +2556,41 @@
         }
 
         homeMapReady = true;
+        ensureEmergencyPoiLayers(
+          homeMap,
+          HOME_EMERGENCY_SOURCE_ID,
+          HOME_EMERGENCY_CIRCLE_LAYER_ID,
+          HOME_EMERGENCY_ICON_LAYER_ID
+        );
+        attachEmergencyPoiPopupHandlers(
+          homeMap,
+          HOME_EMERGENCY_CIRCLE_LAYER_ID,
+          HOME_EMERGENCY_ICON_LAYER_ID
+        );
         syncUserMarkers();
+        syncHomeEmergencyPois();
+        if (mainMapReady) {
+          syncMainEmergencyPois();
+        }
+      });
+
+      homeMap.on("zoomend", () => {
+        syncHomeEmergencyPois();
+      });
+
+      homeMap.on("click", event => {
+        const clickedPoi = homeMap.queryRenderedFeatures(event.point, {
+          layers: [HOME_EMERGENCY_CIRCLE_LAYER_ID, HOME_EMERGENCY_ICON_LAYER_ID]
+        });
+
+        if (clickedPoi.length) {
+          return;
+        }
+
+        if (emergencyPoiPopup) {
+          emergencyPoiPopup.remove();
+          emergencyPoiPopup = null;
+        }
       });
     }
 
@@ -2234,6 +2610,7 @@
       mainMap.on("load", () => {
         const layers = mainMap.getStyle().layers || [];
         const labelLayer = layers.find(layer => layer.type === "symbol" && layer.layout && layer.layout["text-field"]);
+        const beforeId = labelLayer ? labelLayer.id : undefined;
 
         mainMap.addLayer(
           {
@@ -2272,10 +2649,42 @@
           labelLayer ? labelLayer.id : undefined
         );
 
+        ensureEmergencyPoiLayers(
+          mainMap,
+          MAIN_EMERGENCY_SOURCE_ID,
+          MAIN_EMERGENCY_CIRCLE_LAYER_ID,
+          MAIN_EMERGENCY_ICON_LAYER_ID,
+          beforeId
+        );
+        attachEmergencyPoiPopupHandlers(
+          mainMap,
+          MAIN_EMERGENCY_CIRCLE_LAYER_ID,
+          MAIN_EMERGENCY_ICON_LAYER_ID
+        );
         mainMapReady = true;
         ensureCrimeMapLayers();
         updateCrimeVisualization();
         syncUserMarkers();
+        syncMainEmergencyPois();
+      });
+
+      mainMap.on("zoomend", () => {
+        syncMainEmergencyPois();
+      });
+
+      mainMap.on("click", event => {
+        const clickedPoi = mainMap.queryRenderedFeatures(event.point, {
+          layers: [MAIN_EMERGENCY_CIRCLE_LAYER_ID, MAIN_EMERGENCY_ICON_LAYER_ID]
+        });
+
+        if (clickedPoi.length) {
+          return;
+        }
+
+        if (emergencyPoiPopup) {
+          emergencyPoiPopup.remove();
+          emergencyPoiPopup = null;
+        }
       });
     }
 
