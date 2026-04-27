@@ -7,16 +7,18 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg: #071127;
-      --bg-soft: #0d1830;
-      --sidebar: rgba(8, 14, 28, 0.96);
-      --panel: #1d2a45;
+      --bg: #08111f;
+      --bg-soft: #13223b;
+      --sidebar: rgba(10, 18, 33, 0.96);
+      --panel: #1f2c45;
       --panel-soft: rgba(255, 255, 255, 0.04);
       --line: rgba(130, 160, 220, 0.18);
       --text: #f5f8ff;
       --muted: #93a7c8;
-      --cyan: #4fd1ff;
+      --cyan: #27d7c4;
       --blue: #4c98ff;
+      --amber: #f8c34a;
+      --violet: #a987ff;
       --red: #ff5f6d;
       --green: #22e27a;
       --shadow: 0 24px 70px rgba(0, 0, 0, 0.24);
@@ -29,38 +31,12 @@
       min-height: 100vh;
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(76, 152, 255, 0.12), transparent 26%),
-        linear-gradient(180deg, #030919 0%, var(--bg) 100%);
+        linear-gradient(135deg, rgba(39, 215, 196, 0.12) 0 18%, transparent 18%),
+        linear-gradient(315deg, rgba(255, 122, 89, 0.12) 0 15%, transparent 15%),
+        linear-gradient(180deg, #050b16 0%, var(--bg) 58%, #201832 100%);
       color: var(--text);
       position: relative;
       overflow-x: hidden;
-    }
-
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      width: 36vw;
-      height: 36vw;
-      border-radius: 50%;
-      filter: blur(18px);
-      opacity: 0.32;
-      pointer-events: none;
-      z-index: 0;
-      animation: floatOrb 16s ease-in-out infinite;
-    }
-
-    body::before {
-      top: -10vw;
-      left: -8vw;
-      background: radial-gradient(circle, rgba(76, 152, 255, 0.24), transparent 65%);
-    }
-
-    body::after {
-      right: -10vw;
-      bottom: -10vw;
-      background: radial-gradient(circle, rgba(79, 209, 255, 0.2), transparent 65%);
-      animation-delay: -8s;
     }
 
     .layout {
@@ -103,7 +79,7 @@
       border-radius: 14px;
       display: grid;
       place-items: center;
-      background: linear-gradient(135deg, #1f66ff, #2a8cff);
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
       box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
       font-size: 1.35rem;
       font-weight: 800;
@@ -140,7 +116,7 @@
     .panel,
     .card {
       background: rgba(16, 24, 44, 0.92);
-      border-radius: 22px;
+      border-radius: 18px;
     }
 
     .nav-card {
@@ -185,8 +161,8 @@
     }
 
     .header {
-      background: #121d39;
-      border-radius: 24px;
+      background: linear-gradient(135deg, rgba(31, 44, 69, 0.96), rgba(36, 31, 67, 0.96));
+      border-radius: 20px;
       padding: 20px 28px;
       display: flex;
       justify-content: space-between;
@@ -268,13 +244,13 @@
     }
 
     .logout {
-      background: linear-gradient(135deg, #ff5f6d, #ff3131);
+      background: linear-gradient(135deg, #ff5f6d, #ff7a59);
       color: white;
       box-shadow: 0 18px 34px rgba(255, 49, 49, 0.18);
     }
 
     .primary {
-      background: linear-gradient(135deg, #23b5d3, #2979ff);
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
       color: white;
       box-shadow: 0 18px 34px rgba(41, 121, 255, 0.22);
     }
@@ -514,11 +490,6 @@
       margin-top: 0;
     }
 
-    @keyframes floatOrb {
-      0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-      50% { transform: translate3d(20px, 22px, 0) scale(1.05); }
-    }
-
     @media (max-width: 1120px) {
       .layout { grid-template-columns: 1fr; }
       .sidebar { border-right: 0; border-bottom: 1px solid rgba(110, 135, 190, 0.12); }
@@ -547,11 +518,6 @@
         </div>
       </div>
 
-      <section class="nav-card">
-        <h2>Ca truc hien tai</h2>
-        <p>Dashboard admin nay da duoc noi vao du lieu thuc: phan loai AI, tim kiem/lap loc bao cao, xuat CSV va nhat ky thao tac de phuc vu audit.</p>
-      </section>
-
       <div class="nav-list">
         <div class="nav-item">Tim kiem va loc bao cao</div>
         <div class="nav-item">Xuat du lieu CSV</div>
@@ -566,7 +532,7 @@
           <div>
             <p class="eyebrow">Admin Control</p>
             <h1>Quan tri bao cao, audit va xuat du lieu</h1>
-            <p class="sub">Theo doi cac bao cao duoc AI phan loai, loc theo muc do/trang thai/khu vuc, va kiem soat nhat ky thao tac de phuc vu audit.</p>
+            <p class="sub">Theo dõi báo cáo, lọc dữ liệu, xuất CSV và kiểm soát audit log.</p>
           </div>
         </div>
 
@@ -575,11 +541,6 @@
           <button class="btn logout" id="logoutButton">Dang xuat</button>
         </div>
       </header>
-
-      <div class="live-band">
-        <strong>Live operational pulse</strong>
-        <span>Du lieu bao cao, ket qua phan loai va nhat ky truy cap dang duoc cap nhat tren cung mot mat bang dieu phoi.</span>
-      </div>
 
       <div class="stats-grid" id="overviewCards"></div>
 

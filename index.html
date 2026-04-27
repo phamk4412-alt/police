@@ -7,15 +7,17 @@
   <style>
     :root {
       color-scheme: dark;
-      --bg-1: #06101f;
-      --bg-2: #0f2747;
-      --panel: rgba(7, 17, 34, 0.88);
-      --panel-line: rgba(140, 180, 255, 0.16);
-      --text: #e8eef7;
-      --muted: #9eb1c9;
-      --accent: #23b5d3;
-      --danger: #ff6b6b;
-      --ok: #7ae582;
+      --bg-1: #08111f;
+      --bg-2: #10233d;
+      --panel: rgba(255, 255, 255, 0.09);
+      --panel-line: rgba(255, 255, 255, 0.16);
+      --text: #f7fbff;
+      --muted: #b8c7dc;
+      --accent: #27d7c4;
+      --accent-2: #ff7a59;
+      --accent-3: #f8c34a;
+      --danger: #ff5f6d;
+      --ok: #54e39b;
     }
 
     * {
@@ -31,39 +33,12 @@
       font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(35, 181, 211, 0.18), transparent 28%),
-        radial-gradient(circle at bottom right, rgba(72, 149, 239, 0.18), transparent 32%),
-        linear-gradient(160deg, var(--bg-1), var(--bg-2));
+        linear-gradient(135deg, rgba(39, 215, 196, 0.18) 0 18%, transparent 18% 100%),
+        linear-gradient(315deg, rgba(255, 122, 89, 0.18) 0 16%, transparent 16% 100%),
+        linear-gradient(160deg, var(--bg-1), var(--bg-2) 52%, #201832);
       overflow-x: hidden;
       overflow-y: auto;
       position: relative;
-    }
-
-    body::before,
-    body::after {
-      content: "";
-      position: fixed;
-      width: 36vw;
-      height: 36vw;
-      border-radius: 50%;
-      pointer-events: none;
-      filter: blur(10px);
-      opacity: 0.48;
-      z-index: 0;
-      animation: floatOrb 14s ease-in-out infinite;
-    }
-
-    body::before {
-      top: -10vw;
-      left: -8vw;
-      background: radial-gradient(circle, rgba(35, 181, 211, 0.22), transparent 65%);
-    }
-
-    body::after {
-      right: -8vw;
-      bottom: -10vw;
-      background: radial-gradient(circle, rgba(41, 121, 255, 0.22), transparent 65%);
-      animation-delay: -7s;
     }
 
     .shell {
@@ -86,9 +61,9 @@
     .panel {
       background: var(--panel);
       border: 1px solid var(--panel-line);
-      border-radius: 30px;
-      box-shadow: 0 28px 90px rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(18px);
+      border-radius: 22px;
+      box-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+      backdrop-filter: blur(16px);
       position: relative;
       overflow: hidden;
     }
@@ -134,7 +109,7 @@
     h1 {
       font-size: clamp(2.6rem, 5vw, 4.2rem);
       line-height: 1.02;
-      letter-spacing: -0.05em;
+      letter-spacing: 0;
     }
 
     .lead {
@@ -154,8 +129,8 @@
 
     .meta-card {
       padding: 14px 16px;
-      border-radius: 20px;
-      background: rgba(11, 23, 45, 0.82);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.08);
       border: 1px solid rgba(140, 180, 255, 0.12);
     }
 
@@ -179,8 +154,8 @@
 
     .role-card {
       padding: 18px 20px;
-      border-radius: 22px;
-      background: rgba(14, 28, 52, 0.92);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.075);
       border: 1px solid rgba(140, 180, 255, 0.12);
       transform: translateY(0);
       transition: transform 0.24s ease, border-color 0.24s ease, background 0.24s ease;
@@ -218,9 +193,9 @@
       width: fit-content;
       padding: 9px 14px;
       border-radius: 999px;
-      background: rgba(35, 181, 211, 0.12);
-      border: 1px solid rgba(35, 181, 211, 0.22);
-      color: #b6eff7;
+      background: rgba(84, 227, 155, 0.12);
+      border: 1px solid rgba(84, 227, 155, 0.26);
+      color: #c6ffe0;
       font-size: 0.88rem;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -295,8 +270,8 @@
       font: inherit;
       font-weight: 700;
       color: white;
-      background: linear-gradient(135deg, #23b5d3, #2979ff);
-      box-shadow: 0 18px 34px rgba(41, 121, 255, 0.22);
+      background: linear-gradient(135deg, var(--accent), #4c98ff);
+      box-shadow: 0 18px 34px rgba(39, 215, 196, 0.22);
       transition: transform 0.2s ease;
     }
 
@@ -305,7 +280,7 @@
     }
 
     .ghost {
-      background: rgba(18, 32, 58, 0.95);
+      background: rgba(255, 255, 255, 0.08);
       color: #cfe3fb;
       box-shadow: none;
       border: 1px solid rgba(140, 180, 255, 0.14);
@@ -327,37 +302,9 @@
 
     .account-box {
       padding: 18px 20px;
-      border-radius: 22px;
-      background: rgba(14, 28, 52, 0.92);
-      border: 1px solid rgba(140, 180, 255, 0.12);
-    }
-
-    .trust-bar {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-      color: var(--muted);
-      font-size: 0.92rem;
-    }
-
-    .trust-pill {
-      padding: 8px 12px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(140, 180, 255, 0.12);
-      color: #dce7ff;
-      font-weight: 600;
-    }
-
-    .login-note {
-      padding: 14px 16px;
       border-radius: 18px;
-      background: rgba(5, 12, 25, 0.72);
-      border: 1px dashed rgba(140, 180, 255, 0.18);
-      color: var(--muted);
-      line-height: 1.6;
-      font-size: 0.93rem;
+      background: rgba(255, 255, 255, 0.075);
+      border: 1px solid rgba(140, 180, 255, 0.12);
     }
 
     .scroll-wheel-button {
@@ -443,16 +390,6 @@
       font-family: Consolas, monospace;
     }
 
-    @keyframes floatOrb {
-      0%, 100% {
-        transform: translate3d(0, 0, 0) scale(1);
-      }
-
-      50% {
-        transform: translate3d(18px, 22px, 0) scale(1.06);
-      }
-    }
-
     @keyframes wheelPulse {
       0%, 100% {
         opacity: 0.45;
@@ -482,22 +419,19 @@
       <div>
         <p class="eyebrow">Police Smart System</p>
         <h1>Đăng nhập để truy cập đúng giao diện nghiệp vụ</h1>
-        <p class="lead">
-          Giao diện mở đầu đã được đổi thành màn hình đăng nhập. Sau khi xác thực đúng tài khoản,
-          hệ thống sẽ chuyển thẳng tới trang tương ứng theo quyền của bạn.
-        </p>
+        <p class="lead">Truy cập nhanh vào các khu vực nghiệp vụ: tiếp nhận báo cáo, điều phối, theo dõi hiện trường và quản trị dữ liệu.</p>
         <div class="hero-meta">
           <div class="meta-card">
             <strong>04</strong>
-            <span>Role-based workspaces inside one operational hub.</span>
+            <span>Không gian làm việc theo quyền.</span>
           </div>
           <div class="meta-card">
             <strong>24/7</strong>
-            <span>Realtime coordination for field response and support.</span>
+            <span>Điều phối và hỗ trợ liên tục.</span>
           </div>
           <div class="meta-card">
             <strong>Live</strong>
-            <span>Ready for intake, dispatch, monitoring, and admin control.</span>
+            <span>Báo cáo, bản đồ và quản trị sẵn sàng.</span>
           </div>
         </div>
       </div>
@@ -548,12 +482,6 @@
         <p id="status" class="status" aria-live="polite"></p>
       </form>
 
-      <div class="trust-bar">
-        <span class="trust-pill">Cookie auth</span>
-        <span class="trust-pill">Role routing</span>
-        <span class="trust-pill">Realtime ready</span>
-      </div>
-
       <div class="account-box">
         <h3>Tài khoản mẫu</h3>
         <ul>
@@ -564,9 +492,6 @@
         </ul>
       </div>
 
-      <div class="login-note">
-        Quick access mode still works in demo presentations if the backend is unavailable, so the handoff experience remains smooth.
-      </div>
     </section>
   </main>
 

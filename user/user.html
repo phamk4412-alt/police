@@ -12,15 +12,17 @@
 
   <style>
     :root {
-      --bg: #190d18;
-      --panel: #2a1626;
-      --panel-soft: #3a2136;
+      --bg: #08111f;
+      --panel: rgba(255, 255, 255, 0.09);
+      --panel-soft: rgba(255, 255, 255, 0.12);
       --panel-muted: rgba(255, 255, 255, 0.04);
-      --border: #563350;
-      --text: #fff1f2;
-      --muted: #fbcfe8;
-      --accent: #fb7185;
-      --accent-soft: rgba(251, 113, 133, 0.16);
+      --border: rgba(255, 255, 255, 0.16);
+      --text: #f8fbff;
+      --muted: #c5d0df;
+      --accent: #27d7c4;
+      --accent-soft: rgba(39, 215, 196, 0.16);
+      --coral: #ff7a59;
+      --amber: #f8c34a;
       --blue: #60a5fa;
       --green: #34d399;
       --danger: #ef4444;
@@ -36,8 +38,9 @@
     body {
       font-family: "Segoe UI", Tahoma, sans-serif;
       background:
-        radial-gradient(circle at top left, rgba(251, 113, 133, 0.18), transparent 24%),
-        linear-gradient(180deg, #190d18, #120914);
+        linear-gradient(135deg, rgba(39, 215, 196, 0.14) 0 16%, transparent 16%),
+        linear-gradient(315deg, rgba(255, 122, 89, 0.14) 0 15%, transparent 15%),
+        linear-gradient(180deg, var(--bg), #11243c 56%, #241832);
       color: var(--text);
       min-height: 100vh;
     }
@@ -69,7 +72,7 @@
     }
 
     .eyebrow {
-      color: #fda4af;
+      color: #9df4e9;
       font-size: 0.92rem;
       font-weight: 700;
       letter-spacing: 0.08em;
@@ -83,7 +86,7 @@
 
     .sub {
       margin-top: 10px;
-      color: #fecdd3;
+      color: var(--muted);
       max-width: 780px;
       line-height: 1.6;
     }
@@ -180,7 +183,7 @@
     .panel {
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 24px;
+      border-radius: 18px;
       padding: 24px;
       box-shadow: var(--shadow);
     }
@@ -256,7 +259,7 @@
       padding: 12px 14px;
       border-radius: 14px;
       border: 1px solid rgba(255, 255, 255, 0.12);
-      background: #20111d;
+      background: rgba(8, 17, 31, 0.82);
       color: var(--text);
     }
 
@@ -287,7 +290,7 @@
       border-radius: 20px;
       overflow: hidden;
       border: 1px solid rgba(255, 255, 255, 0.08);
-      background: #120914;
+      background: #09111f;
     }
 
     #homeMap {
@@ -330,7 +333,7 @@
       padding: 8px 12px;
       border-radius: 999px;
       background: var(--accent-soft);
-      color: #fecdd3;
+      color: #cbfff7;
       font-size: 0.88rem;
       font-weight: 700;
       margin-bottom: 14px;
@@ -384,7 +387,7 @@
       min-width: 0;
       overflow-x: auto;
       scrollbar-width: thin;
-      scrollbar-color: rgba(251, 113, 133, 0.4) transparent;
+      scrollbar-color: rgba(39, 215, 196, 0.4) transparent;
       padding-bottom: 2px;
     }
 
@@ -416,14 +419,14 @@
     }
 
     .chip-btn.active {
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), var(--blue));
       border-color: rgba(251, 113, 133, 0.38);
       color: white;
       box-shadow: 0 10px 24px rgba(251, 113, 133, 0.24);
     }
 
     .chip-btn.filter-chip.active {
-      background: var(--accent);
+      background: linear-gradient(135deg, var(--accent), var(--coral));
       border-color: rgba(251, 113, 133, 0.38);
       color: white;
     }
@@ -460,9 +463,9 @@
     }
 
     .stat-btn.active {
-      background: rgba(251, 113, 133, 0.14);
-      border-color: rgba(251, 113, 133, 0.34);
-      box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.12);
+      background: rgba(39, 215, 196, 0.14);
+      border-color: rgba(39, 215, 196, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(39, 215, 196, 0.12);
     }
 
     .stat-topline {
@@ -478,7 +481,7 @@
     }
 
     .stat-count {
-      color: #fecdd3;
+      color: #9df4e9;
       font-weight: 800;
     }
 
@@ -539,8 +542,8 @@
       margin-top: 8px;
       padding: 6px 10px;
       border-radius: 999px;
-      background: rgba(251, 113, 133, 0.14);
-      color: #fecdd3;
+      background: rgba(39, 215, 196, 0.14);
+      color: #9df4e9;
       font-size: 0.8rem;
       font-weight: 700;
     }
@@ -594,7 +597,7 @@
     }
 
     .mapboxgl-popup-content {
-      background: #24131f;
+      background: #101a2c;
       color: var(--text);
       border-radius: 16px;
       border: 1px solid rgba(255, 255, 255, 0.08);
@@ -613,7 +616,7 @@
     }
 
     .popup-meta {
-      color: #fecdd3;
+      color: #9df4e9;
       font-size: 0.92rem;
       margin-bottom: 6px;
     }
@@ -625,7 +628,7 @@
     }
 
     .mapboxgl-ctrl-group {
-      background: rgba(42, 22, 38, 0.92);
+      background: rgba(16, 26, 44, 0.92);
       border-radius: 14px;
       overflow: hidden;
       box-shadow: none;
@@ -729,7 +732,7 @@
         <div class="hero-content">
           <p class="eyebrow">Trung tâm hỗ trợ người dân</p>
           <h1>Trung tâm hỗ trợ người dân</h1>
-          <p class="sub">Tiếp nhận báo cáo sự cố, cảnh báo an ninh và hỗ trợ khẩn cấp cho người dân theo thời gian thực với giao diện gọn, rõ và dễ thao tác trên mọi thiết bị.</p>
+          <p class="sub">Báo cáo sự cố, xem bản đồ và gọi hỗ trợ khẩn cấp nhanh hơn.</p>
         </div>
       </div>
 
@@ -747,11 +750,9 @@
         <aside class="stack">
           <section class="panel">
             <h2>Bản đồ nhỏ</h2>
-            <p class="panel-subtitle">Hiển thị ranh giới TP.HCM với phong cách nhẹ, nền mờ và đường viền rõ để định hướng khu vực tổng quan.</p>
             <div class="map-shell">
               <div class="map-frame" id="homeMap"></div>
             </div>
-            <p class="map-legend">Bản đồ này chỉ hiển thị ranh giới thành phố, không bật mô hình 3D để giữ giao diện gọn và dễ nhìn.</p>
           </section>
         </aside>
 
@@ -843,7 +844,6 @@
             <div>
               <div class="map-tag">Bản đồ 3D trực quan</div>
               <h2>Bản đồ thành phố</h2>
-              <p class="panel-subtitle">Theo dõi khu vực đô thị với công trình 3D. Dữ liệu ranh giới TP.HCM không được tải ở trang này để giữ hiệu năng và tập trung vào bản đồ vụ án.</p>
             </div>
 
             <div class="map-toolbar">
@@ -889,7 +889,7 @@
           <div class="map-shell">
             <div class="map-frame" id="mainMap"></div>
           </div>
-          <p class="map-legend" id="mapModeDescription">Chế độ bản đồ thường chỉ hiển thị bản đồ 3D và ẩn toàn bộ dữ liệu vụ án.</p>
+          <p class="map-legend" id="mapModeDescription">Bản đồ thường đang hiển thị.</p>
         </section>
 
         <aside class="map-sidebar">
