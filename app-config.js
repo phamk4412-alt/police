@@ -24,7 +24,7 @@
   // Set window.POLICE_PUBLIC_API_BASE before this file, or open the site once
   // with ?apiBase=https://your-backend.example.com to store a different backend.
   const configuredPublicApiBase = normalizeBaseUrl(
-    window.POLICE_PUBLIC_API_BASE || "https://police-lahn.onrender.com"
+    window.POLICE_PUBLIC_API_BASE || "https://police-1ahn.onrender.com"
   );
   const runtimeConfiguredApiBase = getRuntimeConfiguredApiBase();
 
