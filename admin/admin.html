@@ -636,10 +636,12 @@
     </main>
   </div>
 
+  <script src="../app-config.js"></script>
+  <script src="../app-api.js"></script>
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await window.POLICE_API.fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
@@ -733,7 +735,7 @@
 
     async function loadReports() {
       const query = buildQueryString();
-      const response = await fetch(`/api/incidents${query ? `?${query}` : ""}`);
+      const response = await window.POLICE_API.fetch(`/api/incidents${query ? `?${query}` : ""}`);
       const payload = await readApiPayload(response);
 
       if (!response.ok) {
@@ -744,7 +746,7 @@
     }
 
     async function loadAuditLogs() {
-      const response = await fetch("/api/audit-logs?limit=12");
+      const response = await window.POLICE_API.fetch("/api/audit-logs?limit=12");
       const payload = await readApiPayload(response);
 
       if (!response.ok) {
@@ -895,7 +897,7 @@
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await window.POLICE_API.fetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
 

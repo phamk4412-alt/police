@@ -9,6 +9,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
   <script src="../app-config.js"></script>
+  <script src="../app-api.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
 
   <style>
@@ -935,7 +936,7 @@
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await window.POLICE_API.fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
@@ -1024,7 +1025,7 @@
     const reportHistoryNote = document.getElementById("reportHistoryNote");
     const nearbyDangerList = document.getElementById("nearbyDangerList");
     const nearbyDangerNote = document.getElementById("nearbyDangerNote");
-    const API_BASE = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
+    const API_BASE = window.POLICE_API.base;
     const TRACKED_INCIDENT_STORAGE_KEY = "POLICE_LAST_TRACKED_INCIDENT_ID";
     const USER_LOCATION_SESSION_KEY = "userLocation";
     const HOME_POI_SOURCE = "composite";
@@ -1094,7 +1095,7 @@
       }
 
       try {
-        const response = await fetch(apiUrl(`/api/incidents/${trackedIncidentId}`));
+        const response = await window.POLICE_API.fetch(`/api/incidents/${trackedIncidentId}`);
         const payload = await readApiPayload(response);
 
         if (!response.ok || !payload || Array.isArray(payload)) {
@@ -1115,7 +1116,7 @@
       }
 
       incidentHubConnection = new signalR.HubConnectionBuilder()
-        .withUrl(apiUrl("/hubs/incidents"), { withCredentials: false })
+        .withUrl(apiUrl("/hubs/incidents"), { withCredentials: true })
         .withAutomaticReconnect()
         .build();
 
@@ -1632,7 +1633,7 @@
         };
       }
 
-      const response = await fetch(apiUrl("/api/incidents/analyze"), {
+      const response = await window.POLICE_API.fetch("/api/incidents/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -2134,7 +2135,7 @@
           throw new Error("Không tìm thấy địa chỉ máy chủ tiếp nhận báo cáo.");
         }
 
-        const response = await fetch(apiUrl("/api/incidents"), {
+        const response = await window.POLICE_API.fetch("/api/incidents", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -2192,7 +2193,7 @@
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await window.POLICE_API.fetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
 

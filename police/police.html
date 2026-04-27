@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cảnh sát - Trung tâm điều hành</title>
   <script src="../app-config.js"></script>
+  <script src="../app-api.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet" />
   <style>
     :root {
@@ -889,7 +890,7 @@
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await window.POLICE_API.fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
@@ -928,7 +929,7 @@
     const liveAlert = document.getElementById("liveAlert");
     const liveAlertText = document.getElementById("liveAlertText");
     const incidentFeed = document.getElementById("incidentFeed");
-    let apiBase = (window.POLICE_API_BASE || window.location.origin || "").replace(/\/$/, "");
+    let apiBase = window.POLICE_API.base;
     let refreshTimer;
     let liveReportMarkers = [];
     let liveReportEntries = new Map();
@@ -1035,7 +1036,7 @@
 
     window.updateIncidentStatus = async (incidentId, status) => {
       try {
-        const response = await fetch(apiUrl(`/api/incidents/${incidentId}/status`), {
+        const response = await window.POLICE_API.fetch(`/api/incidents/${incidentId}/status`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json"
@@ -1217,7 +1218,7 @@
             return;
           }
 
-          const response = await fetch(apiUrl("/api/incidents"));
+          const response = await window.POLICE_API.fetch("/api/incidents");
           if (!response.ok) {
             const payload = await readApiPayload(response);
             throw new Error(payload.message || "Không tải được dữ liệu vụ việc từ máy chủ.");
@@ -1272,7 +1273,7 @@
         }
 
         incidentHubConnection = new signalR.HubConnectionBuilder()
-          .withUrl(apiUrl("/hubs/incidents"), { withCredentials: false })
+          .withUrl(apiUrl("/hubs/incidents"), { withCredentials: true })
           .withAutomaticReconnect()
           .build();
 
@@ -1461,7 +1462,7 @@
         }
       }
       try {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await window.POLICE_API.fetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
       sessionStorage.removeItem("policeRole");

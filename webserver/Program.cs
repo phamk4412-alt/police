@@ -11,6 +11,9 @@ using PoliceWebServer.Hubs;
 using PoliceWebServer.Models;
 
 var builder = WebApplication.CreateBuilder(args);
+var useCrossSiteCookies = builder.Configuration.GetValue(
+    "POLICE_CROSS_SITE_COOKIES",
+    !builder.Environment.IsDevelopment());
 
 builder.Services.Configure<JsonOptions>(options =>
 {
@@ -33,7 +36,10 @@ builder.Services
     {
         options.Cookie.Name = "PoliceSmartHub.Auth";
         options.Cookie.HttpOnly = true;
-        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.SameSite = useCrossSiteCookies ? SameSiteMode.None : SameSiteMode.Lax;
+        options.Cookie.SecurePolicy = useCrossSiteCookies
+            ? CookieSecurePolicy.Always
+            : CookieSecurePolicy.SameAsRequest;
         options.LoginPath = "/";
         options.AccessDeniedPath = "/";
         options.SlidingExpiration = true;

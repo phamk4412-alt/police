@@ -497,6 +497,8 @@
 
   <button class="scroll-wheel-button is-hidden" type="button" id="scrollWheelButton" aria-label="Cuộn trang đăng nhập"></button>
 
+  <script src="app-config.js"></script>
+  <script src="app-api.js"></script>
   <script>
     const demoAccounts = {
       admin: { password: "admin123", role: "Admin", redirectPath: "./admin/admin.html" },
@@ -534,7 +536,7 @@
 
     async function redirectIfAuthenticated() {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await window.POLICE_API.fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
@@ -567,7 +569,7 @@
 
       setStatus("Đang xác thực tài khoản...", "");
       try {
-        const response = await fetch("/api/auth/login", {
+        const response = await window.POLICE_API.fetch("/api/auth/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"

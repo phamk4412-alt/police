@@ -6,6 +6,8 @@
   <title>Nhân viên hỗ trợ</title>
   <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@7.3.0/turf.min.js"></script>
+  <script src="../app-config.js"></script>
+  <script src="../app-api.js"></script>
   <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet" />
   <style>
     :root {
@@ -994,7 +996,7 @@
   <script>
     async function ensureRole(expectedRole) {
       try {
-        const response = await fetch("/api/auth/me");
+        const response = await window.POLICE_API.fetch("/api/auth/me");
         if (!response.ok) {
           throw new Error("Auth API unavailable");
         }
@@ -2181,7 +2183,7 @@
 
     document.getElementById("logoutButton").addEventListener("click", async () => {
       try {
-        await fetch("/api/auth/logout", { method: "POST" });
+        await window.POLICE_API.fetch("/api/auth/logout", { method: "POST" });
       } catch {
       }
 
