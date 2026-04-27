@@ -6,16 +6,25 @@
     return (value || "").trim().replace(/\/$/, "");
   }
 
+  function migrateKnownBadBaseUrl(value) {
+    return value.replace("https://police-lahn.onrender.com", "https://police-1ahn.onrender.com");
+  }
+
   function getRuntimeConfiguredApiBase() {
     try {
       const params = new URLSearchParams(window.location.search);
-      const queryBase = normalizeBaseUrl(params.get("apiBase"));
+      const queryBase = migrateKnownBadBaseUrl(normalizeBaseUrl(params.get("apiBase")));
       if (queryBase) {
         window.localStorage.setItem(storageKey, queryBase);
         return queryBase;
       }
 
-      return normalizeBaseUrl(window.localStorage.getItem(storageKey));
+      const storedBase = migrateKnownBadBaseUrl(normalizeBaseUrl(window.localStorage.getItem(storageKey)));
+      if (storedBase) {
+        window.localStorage.setItem(storageKey, storedBase);
+      }
+
+      return storedBase;
     } catch {
       return "";
     }
