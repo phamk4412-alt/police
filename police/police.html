@@ -1067,7 +1067,7 @@
     };
 
     function renderIncidentFeed(reports, map) {
-      const userReports = reports.filter((report) => report.Source === "user");
+      const userReports = reports.filter((report) => (report.Source || "").toLowerCase() === "user");
 
       if (userReports.length === 0) {
         incidentFeed.innerHTML = `<div class="incident-feed-empty">Đang chờ báo cáo mới từ người dùng.</div>`;
@@ -1196,8 +1196,9 @@
 
         reports.forEach((report) => {
           const markerNode = document.createElement("div");
-          const markerClasses = ["incident-marker", report.Source === "user" ? "high" : report.Level];
-          if (report.Source === "user") {
+          const isUserReport = (report.Source || "").toLowerCase() === "user";
+          const markerClasses = ["incident-marker", isUserReport ? "high" : report.Level];
+          if (isUserReport) {
             markerClasses.push("live-report");
           }
           markerNode.className = markerClasses.join(" ");
@@ -1318,13 +1319,18 @@
           .build();
 
         incidentHubConnection.on("IncidentCreated", async (incident) => {
-          upsertReport(incident);
+          const normalizedIncident = normalizeIncident(incident);
+          upsertReport(normalizedIncident);
           rerenderLiveReports();
+          if (normalizedIncident?.Id) {
+            showLiveAlert(`Co bao cao moi: ${normalizedIncident.Title}`);
+          }
           await refreshLiveReports();
         });
 
         incidentHubConnection.on("IncidentUpdated", async (incident) => {
-          upsertReport(incident);
+          const normalizedIncident = normalizeIncident(incident);
+          upsertReport(normalizedIncident);
           rerenderLiveReports();
           await refreshLiveReports();
         });
