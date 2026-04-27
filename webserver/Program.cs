@@ -119,6 +119,27 @@ var staticAssets = new StaticAssetPaths(
 EnsureStaticAssetsExist(staticAssets);
 await EnsureDatabaseReadyAsync(app.Services);
 
+app.Use(async (context, next) =>
+{
+    var origin = context.Request.Headers.Origin.ToString();
+    if (IsAllowedCorsOrigin(origin))
+    {
+        context.Response.Headers.AccessControlAllowOrigin = origin;
+        context.Response.Headers.AccessControlAllowCredentials = "true";
+        context.Response.Headers.AccessControlAllowHeaders = "Content-Type, Authorization, X-Requested-With, X-SignalR-User-Agent";
+        context.Response.Headers.AccessControlAllowMethods = "GET, POST, PATCH, PUT, DELETE, OPTIONS";
+        context.Response.Headers.Vary = "Origin";
+    }
+
+    if (HttpMethods.IsOptions(context.Request.Method))
+    {
+        context.Response.StatusCode = StatusCodes.Status204NoContent;
+        return;
+    }
+
+    await next();
+});
+
 app.UseCors(CorsPolicies.OpenRealtime);
 app.UseAuthentication();
 app.UseAuthorization();
@@ -794,6 +815,20 @@ static bool TryGetDemoUser(string? username, string? password, out DemoUser user
 
     user = candidate;
     return true;
+}
+
+static bool IsAllowedCorsOrigin(string? origin)
+{
+    if (string.IsNullOrWhiteSpace(origin) || !Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+    {
+        return false;
+    }
+
+    return uri.Host.Equals("warteam.website", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.Equals("www.warteam.website", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+        uri.Host.Equals("127.0.0.1", StringComparison.OrdinalIgnoreCase);
 }
 
 static string GetLandingPathForRole(string? role)
