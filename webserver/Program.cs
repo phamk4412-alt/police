@@ -535,7 +535,11 @@ app.MapGet("/hcm-boundary.geojson", () => Results.File(staticAssets.BoundaryFile
 app.MapGet("/user/data/hcm-boundary.geojson", () => Results.File(staticAssets.BoundaryFile, "application/geo+json"))
     .RequireAuthorization(Policies.UserOnly);
 
-app.MapHub<IncidentHub>("/hubs/incidents").RequireAuthorization(Policies.CanTrackIncident);
+var incidentHub = app.MapHub<IncidentHub>("/hubs/incidents");
+if (!demoOpenAccess)
+{
+    incidentHub.RequireAuthorization(Policies.CanTrackIncident);
+}
 
 app.MapFallback(async context =>
 {
