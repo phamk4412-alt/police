@@ -1230,9 +1230,14 @@ internal static class DemoUsers
     public static readonly IReadOnlyDictionary<string, DemoUser> All = new Dictionary<string, DemoUser>(StringComparer.OrdinalIgnoreCase)
     {
         ["admin"] = new("admin", "admin123", "Quan tri vien", AppRoles.Admin),
+        ["admin2"] = new("admin2", "admin123", "Pho quan tri", AppRoles.Admin),
         ["user"] = new("user", "user123", "Nguoi dung", AppRoles.User),
+        ["user2"] = new("user2", "user123", "Nguoi dan B", AppRoles.User),
         ["police"] = new("police", "police123", "Canh sat", AppRoles.Police),
-        ["support"] = new("support", "support123", "Nhan vien ho tro", AppRoles.Support)
+        ["police2"] = new("police2", "police123", "Canh sat C5001", AppRoles.Police),
+        ["c5001"] = new("c5001", "c5001", "Tran Nguyen Van A", AppRoles.Police),
+        ["support"] = new("support", "support123", "Nhan vien ho tro", AppRoles.Support),
+        ["support2"] = new("support2", "support123", "Nhan vien ho tro 2", AppRoles.Support)
     };
 }
 
