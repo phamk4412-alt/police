@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using PoliceWebServer.Data;
 using PoliceWebServer.Hubs;
 using PoliceWebServer.Models;
+using PoliceWebServer.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 var useCrossSiteCookies = builder.Configuration.GetValue(
@@ -63,6 +64,8 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(Policies.CanUpdateIncidents, policy => policy.RequireRole(AppRoles.Admin, AppRoles.Police));
     options.AddPolicy(Policies.CanAuditAndExport, policy => policy.RequireRole(AppRoles.Admin));
 });
+
+builder.Services.AddSingleton<PolicePresenceService>();
 
 builder.Services.AddSignalR().AddJsonProtocol(options =>
 {
@@ -541,6 +544,42 @@ app.MapPatch("/api/incidents/{id:guid}/status", async (
     });
 }).RequireAuthorization(Policies.CanUpdateIncidents);
 
+app.MapGet("/api/police/locations", (PolicePresenceService policePresenceService) =>
+{
+    return Results.Ok(policePresenceService.GetActiveLocations());
+}).RequireAuthorization(Policies.CanViewIncidents);
+
+app.MapPost("/api/police/me/location", async (
+    PoliceLocationRequest request,
+    ClaimsPrincipal user,
+    PolicePresenceService policePresenceService,
+    IHubContext<IncidentHub> hubContext) =>
+{
+    var (location, error) = policePresenceService.UpdateLocation(user, request);
+    if (location is null)
+    {
+        return Results.BadRequest(new { message = error });
+    }
+
+    await hubContext.Clients.All.SendAsync("PoliceLocationUpdated", location);
+    await hubContext.Clients.All.SendAsync("PoliceLocationsSnapshot", policePresenceService.GetActiveLocations());
+    return Results.Ok(location);
+}).RequireAuthorization(Policies.PoliceOnly);
+
+app.MapDelete("/api/police/me/location", async (
+    ClaimsPrincipal user,
+    PolicePresenceService policePresenceService,
+    IHubContext<IncidentHub> hubContext) =>
+{
+    var removed = policePresenceService.RemoveLocation(user);
+    if (removed is not null)
+    {
+        await hubContext.Clients.All.SendAsync("PoliceLocationRemoved", removed);
+        await hubContext.Clients.All.SendAsync("PoliceLocationsSnapshot", policePresenceService.GetActiveLocations());
+    }
+
+    return Results.NoContent();
+}).RequireAuthorization(Policies.PoliceOnly);
 MapPage(app, "/", staticAssets.IndexFile);
 MapPage(app, "/index.html", staticAssets.IndexFile);
 MapProtectedPage(app, "/admin", staticAssets.AdminFile, Policies.AdminOnly);
