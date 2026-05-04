@@ -367,7 +367,31 @@
       animation: urgentPulse 1.2s ease-in-out infinite;
       box-shadow: 0 0 0 12px rgba(255, 55, 71, 0.16);
     }
+    .police-location-marker {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.95);
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
+      box-shadow: 0 0 0 9px rgba(56, 189, 248, 0.18), 0 10px 24px rgba(15, 23, 42, 0.32);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      color: #ffffff;
+      font-size: 0.85rem;
+      font-weight: 900;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
 
+    .police-location-marker::before {
+      content: "CS";
+      letter-spacing: 0;
+    }
+
+    .police-location-marker:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 0 12px rgba(56, 189, 248, 0.22), 0 12px 28px rgba(15, 23, 42, 0.38);
+    }
     .mapboxgl-popup {
       max-width: 340px !important;
     }
@@ -940,7 +964,10 @@
     let hasInitializedReports = false;
     let currentReports = [];
     let incidentHubConnection;
-
+    let policeLocationMarkers = new Map();
+    let currentPoliceLocations = [];
+    let activeShiftPosition = null;
+    let lastKnownPosition = null;
     function apiUrl(path) {
       return `${apiBase}${path}`;
     }
@@ -1146,6 +1173,33 @@
         .filter((report) => report?.Id && Number.isFinite(report.Latitude) && Number.isFinite(report.Longitude));
     }
 
+    function normalizePoliceLocation(rawLocation) {
+      if (!rawLocation) {
+        return null;
+      }
+
+      const location = {
+        Username: rawLocation.Username || rawLocation.username || "unknown",
+        DisplayName: rawLocation.DisplayName || rawLocation.displayName || "Canh sat",
+        Role: rawLocation.Role || rawLocation.role || "Police",
+        Latitude: Number(rawLocation.Latitude ?? rawLocation.latitude),
+        Longitude: Number(rawLocation.Longitude ?? rawLocation.longitude),
+        District: rawLocation.District || rawLocation.district || "TP.HCM",
+        ShiftId: rawLocation.ShiftId || rawLocation.shiftId || "",
+        Status: rawLocation.Status || rawLocation.status || "Dang trong ca",
+        UpdatedAt: rawLocation.UpdatedAt || rawLocation.updatedAt || new Date().toISOString()
+      };
+
+      return location.Username && Number.isFinite(location.Latitude) && Number.isFinite(location.Longitude)
+        ? location
+        : null;
+    }
+
+    function normalizePoliceLocations(rawLocations) {
+      return (Array.isArray(rawLocations) ? rawLocations : [])
+        .map(normalizePoliceLocation)
+        .filter(Boolean);
+    }
     function upsertReport(report) {
       report = normalizeIncident(report);
       if (!report?.Id) {
@@ -1191,6 +1245,90 @@
         liveReportEntries.clear();
       }
 
+      function clearPoliceLocations() {
+        policeLocationMarkers.forEach((entry) => entry.marker.remove());
+        policeLocationMarkers.clear();
+      }
+
+      function upsertPoliceLocationMarker(location) {
+        const normalizedLocation = normalizePoliceLocation(location);
+        if (!normalizedLocation) {
+          return;
+        }
+
+        const existing = policeLocationMarkers.get(normalizedLocation.Username);
+        if (existing) {
+          existing.marker.remove();
+        }
+
+        const markerNode = document.createElement("div");
+        markerNode.className = "police-location-marker";
+        markerNode.dataset.username = normalizedLocation.Username;
+        markerNode.title = `${normalizedLocation.DisplayName} - ${normalizedLocation.Status}`;
+        markerNode.setAttribute("role", "button");
+        markerNode.setAttribute("tabindex", "0");
+
+        const updatedAt = new Date(normalizedLocation.UpdatedAt).toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+
+        const popup = new mapboxgl.Popup({ offset: 20 }).setHTML(
+          `<div class="map-popup">
+            <strong>${normalizedLocation.DisplayName}</strong>
+            <p>${normalizedLocation.Status}</p>
+            <div class="map-popup-footer">
+              <span class="map-popup-time">${normalizedLocation.District || "TP.HCM"}</span>
+              <span class="map-popup-status">${updatedAt}</span>
+            </div>
+            <p style="margin-top:10px;color:#64748b;">Ca: ${normalizedLocation.ShiftId || "Dang truc"}</p>
+          </div>`
+        );
+
+        const marker = new mapboxgl.Marker({ element: markerNode, anchor: "center" })
+          .setLngLat([normalizedLocation.Longitude, normalizedLocation.Latitude])
+          .setPopup(popup)
+          .addTo(map);
+
+        markerNode.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            popup.addTo(map);
+          }
+        });
+
+        policeLocationMarkers.set(normalizedLocation.Username, { marker, popup });
+      }
+
+      function renderPoliceLocations(locations) {
+        currentPoliceLocations = normalizePoliceLocations(locations);
+        clearPoliceLocations();
+        currentPoliceLocations.forEach(upsertPoliceLocationMarker);
+        const activeCount = currentPoliceLocations.length;
+        presentCount.textContent = String(Math.max(activeCount, Number(presentCount.textContent) || 0));
+        workingCount.textContent = String(Math.max(activeCount, Number(workingCount.textContent) || 0));
+      }
+
+      async function refreshPoliceLocations() {
+        if (!hasUsableApiBase()) {
+          return;
+        }
+
+        try {
+          const response = await window.POLICE_API.fetch("/api/police/locations");
+          const payload = await readApiPayload(response);
+          if (!response.ok) {
+            throw new Error(payload.message || "Khong tai duoc vi tri canh sat.");
+          }
+
+          renderPoliceLocations(payload);
+        } catch (error) {
+          console.error("Khong tai duoc vi tri canh sat", error);
+        }
+      }
+
+      window.renderPoliceLocationsOnMap = renderPoliceLocations;
+      window.refreshPoliceLocationsOnMap = refreshPoliceLocations;
       function renderLiveReports(reports) {
         clearLiveReports();
 
@@ -1334,6 +1472,46 @@
           rerenderLiveReports();
           await refreshLiveReports();
         });
+        incidentHubConnection.on("PoliceLocationsSnapshot", (locations) => {
+          renderPoliceLocations(locations);
+        });
+
+        incidentHubConnection.on("PoliceLocationUpdated", (location) => {
+          const normalizedLocation = normalizePoliceLocation(location);
+          if (!normalizedLocation) {
+            return;
+          }
+
+          const existingIndex = currentPoliceLocations.findIndex((item) => item.Username === normalizedLocation.Username);
+          if (existingIndex >= 0) {
+            currentPoliceLocations[existingIndex] = normalizedLocation;
+          } else {
+            currentPoliceLocations.push(normalizedLocation);
+          }
+
+          upsertPoliceLocationMarker(normalizedLocation);
+          const activeCount = currentPoliceLocations.length;
+          presentCount.textContent = String(Math.max(activeCount, Number(presentCount.textContent) || 0));
+          workingCount.textContent = String(Math.max(activeCount, Number(workingCount.textContent) || 0));
+        });
+
+        incidentHubConnection.on("PoliceLocationRemoved", (location) => {
+          const username = location?.Username || location?.username;
+          if (!username) {
+            return;
+          }
+
+          const existing = policeLocationMarkers.get(username);
+          if (existing) {
+            existing.marker.remove();
+            policeLocationMarkers.delete(username);
+          }
+
+          currentPoliceLocations = currentPoliceLocations.filter((item) => item.Username !== username);
+          const activeCount = currentPoliceLocations.length;
+          presentCount.textContent = String(activeCount);
+          workingCount.textContent = String(activeCount);
+        });
 
         incidentHubConnection.onreconnecting(() => {
           showLiveAlert("Dang ket noi lai kenh realtime...");
@@ -1352,6 +1530,8 @@
 
         try {
           await incidentHubConnection.start();
+          const locations = await incidentHubConnection.invoke("GetPoliceLocations");
+          renderPoliceLocations(locations);
         } catch (error) {
           showLiveAlert("Không thể kết nối realtime. Hãy kiểm tra địa chỉ API và server.");
           console.error("Khong ket noi duoc SignalR", error);
@@ -1470,6 +1650,7 @@
         });
 
         await refreshLiveReports();
+        await refreshPoliceLocations();
         await connectIncidentHub();
       });
     }
@@ -1482,17 +1663,91 @@
       });
     }
 
-    checkinButton.addEventListener("click", () => {
+    function getCurrentPositionForShift() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          resolve(lastKnownPosition || { Latitude: 10.7769, Longitude: 106.7009 });
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const coords = {
+              Latitude: position.coords.latitude,
+              Longitude: position.coords.longitude
+            };
+            lastKnownPosition = coords;
+            resolve(coords);
+          },
+          () => resolve(lastKnownPosition || { Latitude: 10.7769, Longitude: 106.7009 }),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 15000 }
+        );
+      });
+    }
+
+    async function sendShiftLocation(status) {
+      const coords = await getCurrentPositionForShift();
+      const payload = {
+        ...coords,
+        ShiftId: `shift-${new Date().toISOString().slice(0, 10)}`,
+        Status: status
+      };
+
+      activeShiftPosition = payload;
+
+      if (incidentHubConnection?.state === signalR.HubConnectionState.Connected) {
+        await incidentHubConnection.invoke("UpdatePoliceLocation", payload);
+        return payload;
+      }
+
+      const response = await window.POLICE_API.fetch("/api/police/me/location", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const result = await readApiPayload(response);
+      if (!response.ok) {
+        throw new Error(result.message || "Khong gui duoc vi tri vao ca.");
+      }
+
+      return payload;
+    }
+
+    checkinButton.addEventListener("click", async () => {
       ensureAudioReady();
-      presentCount.textContent = "5";
-      workingCount.textContent = "4";
-      checkinButton.textContent = "✓ Đã vào ca";
+      try {
+        checkinButton.disabled = true;
+        checkinButton.textContent = "Dang lay vi tri...";
+        await sendShiftLocation("Dang trong ca");
+        await refreshPoliceLocations();
+        checkinButton.textContent = "✓ Đã vào ca";
+        showLiveAlert("Da chia se vi tri ca truc.");
+      } catch (error) {
+        checkinButton.textContent = "Vao ca";
+        showLiveAlert(error.message || "Khong cap nhat duoc vi tri vao ca.");
+      } finally {
+        checkinButton.disabled = false;
+      }
     });
 
-    checkoutButton.addEventListener("click", () => {
+    checkoutButton.addEventListener("click", async () => {
       ensureAudioReady();
-      workingCount.textContent = "2";
-      checkoutButton.textContent = "✓ Đã kết thúc";
+      try {
+        checkoutButton.disabled = true;
+        if (incidentHubConnection?.state === signalR.HubConnectionState.Connected) {
+          await incidentHubConnection.invoke("EndPoliceShift");
+        } else {
+          await window.POLICE_API.fetch("/api/police/me/location", { method: "DELETE" });
+        }
+        activeShiftPosition = null;
+        await refreshPoliceLocations();
+        checkoutButton.textContent = "✓ Đã kết thúc";
+        showLiveAlert("Da ket thuc chia se vi tri ca truc.");
+      } catch (error) {
+        showLiveAlert(error.message || "Khong ket thuc duoc ca truc.");
+      } finally {
+        checkoutButton.disabled = false;
+      }
     });
 
     callStationButton.addEventListener("click", () => {
