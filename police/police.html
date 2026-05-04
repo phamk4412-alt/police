@@ -857,7 +857,6 @@
             </div>
 
             <div class="buttons">
-              <button class="btn btn-checkin" id="checkinButton">⎋ Vào ca</button>
               <button class="btn btn-checkout" id="checkoutButton">⇥ Kết thúc ca</button>
             </div>
 
@@ -947,7 +946,6 @@
     const clockNode = document.getElementById("clock");
     const presentCount = document.getElementById("presentCount");
     const workingCount = document.getElementById("workingCount");
-    const checkinButton = document.getElementById("checkinButton");
     const checkoutButton = document.getElementById("checkoutButton");
     const callStationButton = document.getElementById("callStationButton");
     const logoutButton = document.getElementById("logoutButton");
@@ -968,6 +966,9 @@
     let currentPoliceLocations = [];
     let activeShiftPosition = null;
     let lastKnownPosition = null;
+    let autoShiftStarted = false;
+    let shiftLocationWatchId = null;
+    let lastShiftLocationSentAt = 0;
     function apiUrl(path) {
       return `${apiBase}${path}`;
     }
@@ -1652,6 +1653,7 @@
         await refreshLiveReports();
         await refreshPoliceLocations();
         await connectIncidentHub();
+        await startAutomaticShiftLocation();
       });
     }
 
@@ -1713,23 +1715,47 @@
       return payload;
     }
 
-    checkinButton.addEventListener("click", async () => {
-      ensureAudioReady();
-      try {
-        checkinButton.disabled = true;
-        checkinButton.textContent = "Dang lay vi tri...";
-        await sendShiftLocation("Dang trong ca");
-        await refreshPoliceLocations();
-        checkinButton.textContent = "✓ Đã vào ca";
-        showLiveAlert("Da chia se vi tri ca truc.");
-      } catch (error) {
-        checkinButton.textContent = "Vao ca";
-        showLiveAlert(error.message || "Khong cap nhat duoc vi tri vao ca.");
-      } finally {
-        checkinButton.disabled = false;
+    async function startAutomaticShiftLocation() {
+      if (autoShiftStarted) {
+        return;
       }
-    });
 
+      autoShiftStarted = true;
+      try {
+        await sendShiftLocation("Dang trong ca");
+        await window.refreshPoliceLocationsOnMap?.();
+        showLiveAlert("Da tu dong chia se vi tri ca truc.");
+      } catch (error) {
+        autoShiftStarted = false;
+        showLiveAlert(error.message || "Khong tu dong cap nhat duoc vi tri.");
+        return;
+      }
+
+      if (navigator.geolocation && shiftLocationWatchId === null) {
+        shiftLocationWatchId = navigator.geolocation.watchPosition(
+          async (position) => {
+            const now = Date.now();
+            if (now - lastShiftLocationSentAt < 5000) {
+              return;
+            }
+
+            lastShiftLocationSentAt = now;
+            lastKnownPosition = {
+              Latitude: position.coords.latitude,
+              Longitude: position.coords.longitude
+            };
+
+            try {
+              await sendShiftLocation("Dang trong ca");
+            } catch (error) {
+              console.error("Khong cap nhat duoc vi tri tu dong", error);
+            }
+          },
+          (error) => console.error("Khong theo doi duoc vi tri", error),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 10000 }
+        );
+      }
+    }
     checkoutButton.addEventListener("click", async () => {
       ensureAudioReady();
       try {
@@ -1740,7 +1766,12 @@
           await window.POLICE_API.fetch("/api/police/me/location", { method: "DELETE" });
         }
         activeShiftPosition = null;
-        await refreshPoliceLocations();
+        autoShiftStarted = false;
+        if (shiftLocationWatchId !== null && navigator.geolocation) {
+          navigator.geolocation.clearWatch(shiftLocationWatchId);
+          shiftLocationWatchId = null;
+        }
+        await window.refreshPoliceLocationsOnMap?.();
         checkoutButton.textContent = "✓ Đã kết thúc";
         showLiveAlert("Da ket thuc chia se vi tri ca truc.");
       } catch (error) {
@@ -1758,6 +1789,10 @@
     logoutButton.addEventListener("click", async () => {
       if (refreshTimer) {
         window.clearInterval(refreshTimer);
+      }
+      if (shiftLocationWatchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(shiftLocationWatchId);
+        shiftLocationWatchId = null;
       }
       if (incidentHubConnection) {
         try {
